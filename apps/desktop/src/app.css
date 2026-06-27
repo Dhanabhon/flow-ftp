@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+/*
+  FlowFTP design tokens — dark, premium, macOS-native feel.
+  Tailwind v4 uses CSS-first config; `@theme` exposes these as utilities
+  like bg-bg, text-fg, border-border, bg-accent, etc.
+*/
+@theme {
+  /* ── Base surfaces ─────────────────────────────────────────────── */
+  --color-bg: #08090d; /* app background (deepest) */
+  --color-bg-elevated: #0e1016; /* panels, sidebar */
+  --color-bg-panel: #111419; /* inline panels */
+  --color-bg-hover: #181b22; /* row hover */
+  --color-bg-active: #1f242d; /* selected row */
+
+  --color-border: #1e232c;
+  --color-border-strong: #2a303a;
+  --color-border-focus: #3b82f6;
+
+  /* ── Foreground ────────────────────────────────────────────────── */
+  --color-fg: #e7eaf0;
+  --color-fg-muted: #9aa3b2;
+  --color-fg-subtle: #6b7384;
+  --color-fg-faint: #4b5260;
+
+  /* ── Accent (primary action) ───────────────────────────────────── */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+  --color-accent-fg: #ffffff;
+  --color-accent-muted: #1e3a8a;
+
+  /* ── Status / semantic ─────────────────────────────────────────── */
+  --color-success: #10b981;
+  --color-success-muted: #064e3b;
+  --color-warning: #f59e0b;
+  --color-warning-muted: #78350f;
+  --color-danger: #ef4444;
+  --color-danger-muted: #7f1d1d;
+  --color-info: #06b6d4;
+  --color-info-muted: #164e63;
+
+  /* ── Transfer speed indicators ─────────────────────────────────── */
+  --color-speed-fast: #22c55e;
+  --color-speed-medium: #eab308;
+  --color-speed-slow: #f97316;
+
+  /* ── Typography ────────────────────────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, 'Cascadia Code',
+    Menlo, monospace;
+
+  /* ── Radii ─────────────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* ── Shadows (soft, layered for depth) ─────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.35),
+    0 0 24px rgba(59, 130, 246, 0.25);
+
+  /* ── Animations ────────────────────────────────────────────────── */
+  --animate-fade-in: fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-up: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Base layer ───────────────────────────────────────────────────── */
+@layer base {
+  html {
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-fg);
+    overscroll-behavior: none;
+    user-select: none;
+  }
+  /* Scrollbars: thin, macOS-native vibe */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-subtle);
+    background-clip: padding-box;
+  }
+  /* Disable native focus ring in favor of our own */
+  :focus-visible { outline: none; }
+}
+
+/* ── Reusable component classes ───────────────────────────────────── */
+@layer components {
+  .glass {
+    background: color-mix(in srgb, var(--color-bg-elevated) 80%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* macOS traffic-light spacer for custom titlebar */
+  .traffic-spacer {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  /* Subtle inner border for panels */
+  .panel-ring {
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Drag region for Tauri custom titlebar */
+  .drag-region { -webkit-app-region: drag; }
+  .no-drag { -webkit-app-region: no-drag; }
+}

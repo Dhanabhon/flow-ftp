@@ -1,0 +1,127 @@
+<script lang="ts">
+  import { app } from '$lib/stores/app.svelte';
+  import { cn } from '$lib/utils';
+  import type { Protocol } from '$lib/types';
+  import Modal from '$lib/components/ui/modal.svelte';
+  import Button from '$lib/components/ui/button.svelte';
+  import Badge from '$lib/components/ui/badge.svelte';
+  import { IconZap, IconLock, IconGlobe, IconServer } from '$lib/components/icons';
+
+  let protocol = $state<Protocol>('sftp');
+  let host = $state('');
+  let port = $state(22);
+  let username = $state('');
+  let password = $state('');
+  let saveToKeychain = $state(true);
+
+  const protocols: { id: Protocol; label: string; desc: string; port: number; secure: boolean }[] = [
+    { id: 'sftp', label: 'SFTP', desc: 'SSH File Transfer', port: 22, secure: true },
+    { id: 'ftps', label: 'FTPS', desc: 'FTP over TLS/SSL', port: 990, secure: true },
+    { id: 'ftp', label: 'FTP', desc: 'Plain FTP', port: 21, secure: false }
+  ];
+
+  function chooseProtocol(p: (typeof protocols)[number]) {
+    protocol = p.id;
+    port = p.port;
+  }
+</script>
+
+<Modal
+  bind:open={app.quickConnectOpen}
+  title="Quick Connect"
+  description="Connect to a remote server. Credentials are stored in macOS Keychain."
+  width="md"
+>
+  <!-- Protocol selector -->
+  <div class="mb-4 grid grid-cols-3 gap-2">
+    {#each protocols as p (p.id)}
+      <button
+        class={cn(
+          'flex flex-col items-start rounded-lg border p-3 text-left transition-colors',
+          protocol === p.id
+            ? 'border-accent bg-accent/10 text-fg'
+            : 'border-border bg-bg-panel text-fg-muted hover:border-border-strong hover:bg-bg-hover'
+        )}
+        onclick={() => chooseProtocol(p)}
+      >
+        <div class="flex w-full items-center justify-between">
+          <span class="text-sm font-semibold">{p.label}</span>
+          {#if p.secure}
+            <IconLock size={12} class="text-success" />
+          {/if}
+        </div>
+        <span class="mt-0.5 text-[11px] text-fg-subtle">{p.desc}</span>
+        <span class="mt-1 font-mono text-[10px] text-fg-faint">:{p.port}</span>
+      </button>
+    {/each}
+  </div>
+
+  <!-- Host / port -->
+  <div class="mb-3 grid grid-cols-[1fr_100px] gap-2">
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-fg-muted">Host</span>
+      <div class="flex items-center gap-2 rounded-md border border-border bg-bg px-3 py-2 focus-within:border-accent">
+        <IconGlobe size={14} class="text-fg-subtle" />
+        <input
+          class="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
+          placeholder="ftp.example.com"
+          bind:value={host}
+        />
+      </div>
+    </label>
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-fg-muted">Port</span>
+      <input
+        type="number"
+        class="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+        bind:value={port}
+      />
+    </label>
+  </div>
+
+  <!-- Username / password -->
+  <div class="mb-3 grid grid-cols-2 gap-2">
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-fg-muted">Username</span>
+      <div class="flex items-center gap-2 rounded-md border border-border bg-bg px-3 py-2 focus-within:border-accent">
+        <IconServer size={14} class="text-fg-subtle" />
+        <input
+          class="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
+          placeholder="username"
+          bind:value={username}
+        />
+      </div>
+    </label>
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-fg-muted">Password</span>
+      <input
+        type="password"
+        class="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+        placeholder="••••••••"
+        bind:value={password}
+      />
+    </label>
+  </div>
+
+  <!-- Keychain toggle -->
+  <label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-bg-panel p-3">
+    <input type="checkbox" bind:checked={saveToKeychain} class="h-4 w-4 accent-[var(--color-accent)]" />
+    <div class="flex-1">
+      <div class="flex items-center gap-1.5">
+        <IconLock size={13} class="text-success" />
+        <span class="text-sm font-medium text-fg">Save to Keychain</span>
+      </div>
+      <p class="text-[11px] text-fg-subtle">Encrypt and store credentials securely via macOS Keychain.</p>
+    </div>
+    {#if saveToKeychain}
+      <Badge variant="success" dot>Secured</Badge>
+    {/if}
+  </label>
+
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (app.quickConnectOpen = false)}>Cancel</Button>
+    <Button onclick={() => (app.quickConnectOpen = false)}>
+      <IconZap size={14} /> Connect
+    </Button>
+  {/snippet}
+</Modal>

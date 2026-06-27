@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────
+# OS / Editor
+# ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.fleet/
+*.iml
+*.swp
+*.swo
+*~
+.history/
+
+# ─────────────────────────────────────────────
+# Rust / Cargo
+# ─────────────────────────────────────────────
+target/
+**/*.rs.bk
+*.pdb
+
+# Build profiling output
+perf.data*
+flamegraph.svg
+callgrind.out.*
+
+# Cargo.lock: this workspace ships a binary (Tauri app), so the lockfile
+# SHOULD be committed. If you later split out a library crate, uncomment below
+# for that crate only.
+# Cargo.lock
+
+# ─────────────────────────────────────────────
+# Node.js / Frontend
+# ─────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnp.*
+
+# Build output
+dist/
+build/
+out/
+.vercel/
+.netlify/
+
+# Package manager caches / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm
+.yarn/cache
+.yarn/install-state.gz
+.yarn/build-state.yml
+.pnpm-store/
+
+# Lockfiles: pick ONE package manager and keep its lockfile.
+# Defaults assume pnpm. Comment/uncomment as needed.
+# package-lock.json
+# yarn.lock
+
+# ─────────────────────────────────────────────
+# SvelteKit / Vite
+# ─────────────────────────────────────────────
+.svelte-kit/
+.vite/
+*.local
+
+# ─────────────────────────────────────────────
+# Storybook / Testing
+# ─────────────────────────────────────────────
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+coverage/
+*.lcov
+.nyc_output/
+
+# Storybook
+storybook-static/
+
+# Playwright / Vitest artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ─────────────────────────────────────────────
+# Tauri 2
+# ─────────────────────────────────────────────
+# Rust-side build output lives under target/ (covered above).
+# Generated Tauri resources / icons build cache.
+src-tauri/target/
+src-tauri/gen/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# ─────────────────────────────────────────────
+# Environment / Secrets
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.cer
+*.cert
+secrets/
+credentials.json
+
+# ─────────────────────────────────────────────
+# Logs & runtime
+# ─────────────────────────────────────────────
+logs/
+*.log
+
+# ─────────────────────────────────────────────
+# macOS packaging / notarization artifacts
+# ─────────────────────────────────────────────
+*.dmg
+*.app
+*.pkg
+*.ipa
+*.dylib
+*.so
+*.dll
+
+# Xcode (if any Swift bridging is added later)
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+*.moved-aside
+
+# Notarization / signing helpers
+notarization_history.json
+
+# ─────────────────────────────────────────────
+# Misc
+# ─────────────────────────────────────────────
+tmp/
+temp/
+*.bak
+*.tmp

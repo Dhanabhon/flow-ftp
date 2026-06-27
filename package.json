@@ -1,0 +1,14 @@
+{
+  "name": "flow-ftp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm --filter @flow-ftp/desktop dev",
+    "build": "pnpm --filter @flow-ftp/desktop build",
+    "preview": "pnpm --filter @flow-ftp/desktop preview",
+    "check": "pnpm --filter @flow-ftp/desktop check",
+    "tauri": "pnpm --filter @flow-ftp/desktop tauri"
+  }
+}
