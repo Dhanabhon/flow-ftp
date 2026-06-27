@@ -14,9 +14,9 @@
       {
         "label": "main",
         "title": "FlowFTP",
-        "width": 1280,
+        "width": 1400,
         "height": 800,
-        "minWidth": 960,
+        "minWidth": 1180,
         "minHeight": 600,
         "resizable": true,
         "maximizable": true,

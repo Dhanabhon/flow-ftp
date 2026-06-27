@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getCurrentWindow } from '@tauri-apps/api/window';
   import { app } from '$lib/stores/app.svelte';
   import { IconSearch, IconPlus, IconRefresh, IconCommand, IconZap } from '$lib/components/icons';
   import Tooltip from '$lib/components/ui/tooltip.svelte';
@@ -14,12 +15,31 @@
       app.openCommandPalette();
     }
   }
+
+  function startWindowDrag(e: MouseEvent) {
+    if (e.button !== 0) return;
+    if (e.target instanceof Element && e.target.closest('.no-drag, button, input, textarea, select, a')) {
+      return;
+    }
+    e.preventDefault();
+    void getCurrentWindow().startDragging().catch(() => {});
+  }
+
+  function windowDrag(node: HTMLElement) {
+    node.addEventListener('mousedown', startWindowDrag);
+    return {
+      destroy() {
+        node.removeEventListener('mousedown', startWindowDrag);
+      }
+    };
+  }
 </script>
 
 <svelte:window on:keydown={onKeydown} />
 
 <header
   data-tauri-drag-region
+  use:windowDrag
   class="relative flex h-12 items-center gap-3 border-b border-border bg-bg-elevated px-3 drag-strip"
 >
   <!-- macOS traffic-light spacer (overlay style -> lights paint over this) -->
