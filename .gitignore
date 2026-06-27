@@ -108,6 +108,11 @@ src-tauri/gen/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 
+# Mobile icon variants — regenerable via `tauri icon <src>`. macOS is the
+# primary target; skip iOS/Android icon sets to keep the repo lean.
+apps/desktop/src-tauri/icons/ios/
+apps/desktop/src-tauri/icons/android/
+
 # ─────────────────────────────────────────────
 # Environment / Secrets
 # ─────────────────────────────────────────────

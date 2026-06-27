@@ -84,6 +84,11 @@
 
 /* ── Base layer ───────────────────────────────────────────────────── */
 @layer base {
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+  }
   html {
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
@@ -95,6 +100,10 @@
     color: var(--color-fg);
     overscroll-behavior: none;
     user-select: none;
+    /* Overlay titlebar: content starts at window top (y=0). Reserve space for
+       the macOS traffic lights + drag strip via the header, which is the
+       drag region. No extra body padding needed. */
+    overflow: hidden;
   }
   /* Scrollbars: thin, macOS-native vibe */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -135,7 +144,17 @@
 
 /* ── Utilities ────────────────────────────────────────────────────── */
 @layer utilities {
-  /* Drag region for Tauri custom titlebar */
-  .drag-region { -webkit-app-region: drag; }
-  .no-drag { -webkit-app-region: no-drag; }
+  /* Drag region for Tauri custom titlebar. Apply via `data-tauri-drag-region`
+     attribute in markup. This class only styles the draggable strip. */
+  .drag-strip {
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+  .no-drag {
+    /* Interactive elements inside the drag region. Tauri auto-disables drag
+       for buttons/inputs, but we keep the helper for clarity. */
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }

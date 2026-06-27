@@ -18,13 +18,14 @@
 <svelte:window on:keydown={onKeydown} />
 
 <header
-  class="drag-region flex h-12 items-center gap-3 border-b border-border bg-bg-elevated px-3"
+  data-tauri-drag-region
+  class="relative flex h-12 items-center gap-3 border-b border-border bg-bg-elevated px-3 drag-strip"
 >
-  <!-- macOS traffic-light spacer -->
-  <div class="traffic-spacer"></div>
+  <!-- macOS traffic-light spacer (overlay style -> lights paint over this) -->
+  <div class="traffic-spacer" data-tauri-drag-region></div>
 
   <!-- Brand -->
-  <div class="flex items-center gap-2 select-none">
+  <div class="relative z-10 flex items-center gap-2 select-none">
     <div class="grid h-6 w-6 place-items-center rounded-md bg-accent text-white shadow-sm">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 12h4l3-9 4 18 3-9h4"/>
@@ -34,9 +35,9 @@
   </div>
 
   <!-- Center: command search -->
-  <div class="mx-auto w-full max-w-xl">
+  <div class="no-drag relative z-10 mx-auto w-full max-w-xl">
     <button
-      class="no-drag group flex h-8 w-full items-center gap-2.5 rounded-lg border border-border bg-bg/60 px-3 text-sm text-fg-subtle transition-colors hover:border-border-strong hover:bg-bg-hover"
+      class="group flex h-8 w-full items-center gap-2.5 rounded-lg border border-border bg-bg/60 px-3 text-sm text-fg-subtle transition-colors hover:border-border-strong hover:bg-bg-hover"
       onclick={() => app.openCommandPalette()}
     >
       <IconSearch size={14} />
@@ -48,7 +49,7 @@
   </div>
 
   <!-- Right cluster -->
-  <div class="no-drag flex items-center gap-1">
+  <div class="no-drag relative z-10 flex items-center gap-1">
     <Tooltip label="Quick Connect">
       <Button variant="ghost" size="icon-sm" onclick={() => (app.quickConnectOpen = true)}>
         <IconZap size={15} />
