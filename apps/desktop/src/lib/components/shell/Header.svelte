@@ -4,6 +4,7 @@
   import Tooltip from '$lib/components/ui/tooltip.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
+  import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 
   // Keyboard shortcuts for the whole app
   function onKeydown(e: KeyboardEvent) {
@@ -65,6 +66,8 @@
         <IconPlus size={15} />
       </Button>
     </Tooltip>
+
+    <ThemeToggle />
 
     <div class="mx-1 h-5 w-px bg-border"></div>
 

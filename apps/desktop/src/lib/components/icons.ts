@@ -60,6 +60,9 @@ import ArrowRight from 'lucide-svelte/icons/arrow-right';
 import Inbox from 'lucide-svelte/icons/inbox';
 import Database from 'lucide-svelte/icons/database';
 import CornerDownLeft from 'lucide-svelte/icons/corner-down-left';
+import Sun from 'lucide-svelte/icons/sun';
+import Moon from 'lucide-svelte/icons/moon';
+import Monitor from 'lucide-svelte/icons/monitor';
 
 export {
   Upload as IconUpload,
@@ -119,5 +122,8 @@ export {
   ArrowRight as IconArrowRight,
   Inbox as IconInbox,
   Database as IconDatabase,
-  CornerDownLeft as IconCornerDownLeft
+  CornerDownLeft as IconCornerDownLeft,
+  Sun as IconSun,
+  Moon as IconMoon,
+  Monitor as IconMonitor
 };

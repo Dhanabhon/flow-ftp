@@ -1,7 +1,9 @@
 <script lang="ts">
   import { QueryClient } from '@tanstack/svelte-query';
+  import { browser } from '$app/environment';
   import '../app.css';
   import { setSharedQueryClient } from '$lib/query-context';
+  import { theme } from '$lib/stores/theme.svelte';
 
   let { children } = $props();
 
@@ -18,6 +20,10 @@
     }
   });
   setSharedQueryClient(queryClient);
+
+  // Hydrate theme store from storage + DOM. app.html already set the right
+  // class pre-paint; this keeps the store in sync for the toggle UI.
+  if (browser) theme.init();
 </script>
 
 <svelte:head><title>FlowFTP</title></svelte:head>
