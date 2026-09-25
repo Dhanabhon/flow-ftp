@@ -1,0 +1,18 @@
+[package]
+name = "flow-transfer"
+description = "FlowFTP transfer engine — queue, retry, resume, progress, rate limiting."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+flow-core = { path = "../core" }
+serde = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "io-util", "fs", "macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
