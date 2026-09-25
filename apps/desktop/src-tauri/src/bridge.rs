@@ -7,141 +7,20 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use async_trait::async_trait;
 use flow_core::{
     ConnectionId, Credentials, CoreError, CoreResult, FilePath, Protocol, RemoteFile, RemoteFs,
-    TransferId,
 };
-type BoxedAsyncRead = Box<dyn tokio::io::AsyncRead + Send + Unpin>;
-type BoxedAsyncWrite = Box<dyn tokio::io::AsyncWrite + Send + Unpin>;
 use flow_protocols::{FtpsFs, FtpFs, HostKeyPolicy, SftpFs};
-
-/// Any of the three protocol adapters, behind the domain trait.
-enum Adapter {
-    Ftp(FtpFs),
-    Ftps(FtpsFs),
-    Sftp(SftpFs),
-}
-
-#[async_trait]
-impl RemoteFs for Adapter {
-    async fn connect(&mut self, creds: &Credentials) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.connect(creds).await,
-            Adapter::Ftps(fs) => fs.connect(creds).await,
-            Adapter::Sftp(fs) => fs.connect(creds).await,
-        }
-    }
-
-    async fn disconnect(&mut self) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.disconnect().await,
-            Adapter::Ftps(fs) => fs.disconnect().await,
-            Adapter::Sftp(fs) => fs.disconnect().await,
-        }
-    }
-
-    async fn list(&mut self, path: &FilePath) -> CoreResult<Vec<RemoteFile>> {
-        match self {
-            Adapter::Ftp(fs) => fs.list(path).await,
-            Adapter::Ftps(fs) => fs.list(path).await,
-            Adapter::Sftp(fs) => fs.list(path).await,
-        }
-    }
-
-    async fn stat(&mut self, path: &FilePath) -> CoreResult<RemoteFile> {
-        match self {
-            Adapter::Ftp(fs) => fs.stat(path).await,
-            Adapter::Ftps(fs) => fs.stat(path).await,
-            Adapter::Sftp(fs) => fs.stat(path).await,
-        }
-    }
-
-    async fn mkdir(&mut self, path: &FilePath) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.mkdir(path).await,
-            Adapter::Ftps(fs) => fs.mkdir(path).await,
-            Adapter::Sftp(fs) => fs.mkdir(path).await,
-        }
-    }
-
-    async fn rename(&mut self, from: &FilePath, to: &FilePath) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.rename(from, to).await,
-            Adapter::Ftps(fs) => fs.rename(from, to).await,
-            Adapter::Sftp(fs) => fs.rename(from, to).await,
-        }
-    }
-
-    async fn delete(&mut self, path: &FilePath) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.delete(path).await,
-            Adapter::Ftps(fs) => fs.delete(path).await,
-            Adapter::Sftp(fs) => fs.delete(path).await,
-        }
-    }
-
-    async fn open_read(
-        &mut self,
-        remote: &FilePath,
-        offset: u64,
-    ) -> CoreResult<BoxedAsyncRead> {
-        match self {
-            Adapter::Ftp(fs) => fs.open_read(remote, offset).await,
-            Adapter::Ftps(fs) => fs.open_read(remote, offset).await,
-            Adapter::Sftp(fs) => fs.open_read(remote, offset).await,
-        }
-    }
-
-    async fn open_write(
-        &mut self,
-        remote: &FilePath,
-        offset: u64,
-    ) -> CoreResult<BoxedAsyncWrite> {
-        match self {
-            Adapter::Ftp(fs) => fs.open_write(remote, offset).await,
-            Adapter::Ftps(fs) => fs.open_write(remote, offset).await,
-            Adapter::Sftp(fs) => fs.open_write(remote, offset).await,
-        }
-    }
-
-    async fn download(
-        &mut self,
-        id: TransferId,
-        remote: &FilePath,
-        local: &FilePath,
-    ) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.download(id, remote, local).await,
-            Adapter::Ftps(fs) => fs.download(id, remote, local).await,
-            Adapter::Sftp(fs) => fs.download(id, remote, local).await,
-        }
-    }
-
-    async fn upload(
-        &mut self,
-        id: TransferId,
-        local: &FilePath,
-        remote: &FilePath,
-    ) -> CoreResult<()> {
-        match self {
-            Adapter::Ftp(fs) => fs.upload(id, local, remote).await,
-            Adapter::Ftps(fs) => fs.upload(id, local, remote).await,
-            Adapter::Sftp(fs) => fs.upload(id, local, remote).await,
-        }
-    }
-}
 
 /// Build the adapter matching a protocol. Host-key verification is
 /// development-mode for now (see the SFTP adapter docs); the known-hosts UX
 /// lands with connection profiles.
-fn build_adapter(protocol: Protocol) -> Adapter {
+pub(crate) fn build_adapter(protocol: Protocol) -> Box<dyn RemoteFs> {
     match protocol {
-        Protocol::Ftp => Adapter::Ftp(FtpFs::new()),
-        Protocol::Ftps => Adapter::Ftps(FtpsFs::explicit()),
-        Protocol::Sftp => Adapter::Sftp(SftpFs::with_policy(HostKeyPolicy::AcceptAny)),
+        Protocol::Ftp => Box::new(FtpFs::new()),
+        Protocol::Ftps => Box::new(FtpsFs::explicit()),
+        Protocol::Sftp => Box::new(SftpFs::with_policy(HostKeyPolicy::AcceptAny)),
     }
 }
 
@@ -152,12 +31,6 @@ struct LiveConnection {
     /// password is deliberately not retained.
     #[allow(dead_code)]
     creds: Credentials,
-}
-
-/// Monotonic id source for inline transfers until the transfer engine owns it.
-fn next_transfer_seq() -> u64 {
-    static SEQ: AtomicU64 = AtomicU64::new(1);
-    SEQ.fetch_add(1, Ordering::Relaxed)
 }
 
 /// Live connections, keyed by the client-generated connection id.
@@ -176,10 +49,7 @@ impl ConnectionRegistry {
     pub async fn connect(&self, id: ConnectionId, creds: Credentials) -> CoreResult<()> {
         let mut adapter = build_adapter(creds.protocol);
         adapter.connect(&creds).await?;
-        self.live
-            .lock()
-            .await
-            .insert(id, LiveConnection { adapter: Box::new(adapter), creds });
+        self.live.lock().await.insert(id, LiveConnection { adapter, creds });
         Ok(())
     }
 
@@ -227,34 +97,6 @@ impl ConnectionRegistry {
     pub async fn delete(&self, id: &ConnectionId, path: FilePath) -> CoreResult<()> {
         self.locked(id, move |fs| Box::pin(async move { fs.delete(&path).await }))
             .await
-    }
-
-    /// Download a remote file to a local path.
-    pub async fn download(
-        &self,
-        id: &ConnectionId,
-        remote: FilePath,
-        local: FilePath,
-    ) -> CoreResult<()> {
-        let transfer = TransferId::new(format!("download-{}", next_transfer_seq()));
-        self.locked(id, move |fs| {
-            Box::pin(async move { fs.download(transfer, &remote, &local).await })
-        })
-        .await
-    }
-
-    /// Upload a local file to a remote path.
-    pub async fn upload(
-        &self,
-        id: &ConnectionId,
-        local: FilePath,
-        remote: FilePath,
-    ) -> CoreResult<()> {
-        let transfer = TransferId::new(format!("upload-{}", next_transfer_seq()));
-        self.locked(id, move |fs| {
-            Box::pin(async move { fs.upload(transfer, &local, &remote).await })
-        })
-        .await
     }
 
     /// Lock the registry, fetch the connection, and await the operation.
@@ -323,7 +165,11 @@ pub fn ipc_error(e: CoreError) -> IpcError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use std::time::Duration;
+
+    type BoxedAsyncRead = Box<dyn tokio::io::AsyncRead + Send + Unpin>;
+    type BoxedAsyncWrite = Box<dyn tokio::io::AsyncWrite + Send + Unpin>;
 
     /// Mock adapter recording calls — proves the registry + dispatch path
     /// without a network.
@@ -377,22 +223,6 @@ mod tests {
             _remote: &FilePath,
             _offset: u64,
         ) -> CoreResult<BoxedAsyncWrite> {
-            unreachable!()
-        }
-        async fn download(
-            &mut self,
-            _id: TransferId,
-            _r: &FilePath,
-            _l: &FilePath,
-        ) -> CoreResult<()> {
-            unreachable!()
-        }
-        async fn upload(
-            &mut self,
-            _id: TransferId,
-            _l: &FilePath,
-            _r: &FilePath,
-        ) -> CoreResult<()> {
             unreachable!()
         }
     }

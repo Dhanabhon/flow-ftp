@@ -19,12 +19,14 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Workspace crates — the application layer.
 flow-core = { path = "../../../crates/core" }
 flow-protocols = { path = "../../../crates/protocols" }
 flow-keychain = { path = "../../../crates/keychain" }
+flow-transfer = { path = "../../../crates/transfer" }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 

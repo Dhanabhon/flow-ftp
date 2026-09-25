@@ -1,6 +1,14 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
-  import { IS_TAURI, listLocal, listRemote, localHome } from '$lib/ipc';
+  import {
+    enqueueTransfer,
+    IS_TAURI,
+    listLocal,
+    listRemote,
+    localHome,
+    pickDownloadDirectory,
+    pickFilesToUpload
+  } from '$lib/ipc';
   import Header from '$lib/components/shell/Header.svelte';
   import Sidebar from '$lib/components/shell/Sidebar.svelte';
   import FilePane from '$lib/components/shell/FilePane.svelte';
@@ -95,6 +103,50 @@
     if (base === '/') return `/${child}`;
     return `${base.replace(/\/+$/, '')}/${child}`;
   }
+
+  // ── Transfer buttons ────────────────────────────────────────────────────
+
+  const basename = (path: string) => path.split('/').pop() ?? path;
+
+  /** Upload the selected local files (or picked ones) to the remote path. */
+  async function handleUpload() {
+    if (!app.activeConnectionId) return;
+    const selected = [...app.localSelected].filter((n) => n !== '..');
+    const files =
+      selected.length > 0
+        ? selected.map((name) => joinPath(app.localPath, name))
+        : await pickFilesToUpload();
+    for (const file of files) {
+      const fileName = basename(file);
+      await enqueueTransfer({
+        id: crypto.randomUUID(),
+        connectionId: app.activeConnectionId,
+        direction: 'upload',
+        remotePath: joinPath(app.remotePath, fileName),
+        localPath: file,
+        fileName
+      });
+    }
+  }
+
+  /** Download the selected remote files into a chosen directory. */
+  async function handleDownload() {
+    if (!app.activeConnectionId) return;
+    const selected = [...app.remoteSelected].filter((n) => n !== '..');
+    if (selected.length === 0) return;
+    const destination = await pickDownloadDirectory();
+    if (!destination) return;
+    for (const name of selected) {
+      await enqueueTransfer({
+        id: crypto.randomUUID(),
+        connectionId: app.activeConnectionId,
+        direction: 'download',
+        remotePath: joinPath(app.remotePath, name),
+        localPath: joinPath(destination, name),
+        fileName: name
+      });
+    }
+  }
 </script>
 
 <svelte:window on:keydown={onKeydown} />
@@ -118,6 +170,7 @@
           showHidden={app.showHidden}
           onNavigate={navigateLocal}
           onNavigateTo={(path) => (app.localPath = path)}
+          onUpload={handleUpload}
           error={app.errors.local}
         />
         <FilePane
@@ -131,6 +184,7 @@
           connectionName={app.activeConnection?.name}
           onNavigate={navigateRemote}
           onNavigateTo={(path) => (app.remotePath = path)}
+          onDownload={handleDownload}
           error={app.errors.remote}
         />
         <PreviewPanel />

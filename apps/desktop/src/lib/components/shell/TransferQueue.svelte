@@ -2,6 +2,16 @@
   import { app } from '$lib/stores/app.svelte';
   import { cn, formatBytes, formatSpeed } from '$lib/utils';
   import {
+    cancelTransfer,
+    clearFinishedTransfers,
+    IS_TAURI,
+    onTransferUpdate,
+    pauseTransfer,
+    resumeTransfer,
+    transferList
+  } from '$lib/ipc';
+  import type { Transfer } from '$lib/types';
+  import {
     IconChevronDown,
     IconChevronUp,
     IconUpload,
@@ -19,6 +29,48 @@
   import Progress from '$lib/components/ui/progress.svelte';
 
   const transfers = $derived(app.transfers);
+
+  // Live wiring: replace-by-id snapshots from the engine (Tauri only).
+  $effect(() => {
+    if (!IS_TAURI) return;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+
+    // Start from an empty queue (mock data is browser-only), then load.
+    app.transfers = [];
+    transferList()
+      .then((records) => {
+        if (!disposed) app.transfers = records;
+      })
+      .catch(() => {});
+    onTransferUpdate((record: Transfer) => {
+      if (disposed) return;
+      const index = app.transfers.findIndex((t) => t.id === record.id);
+      if (index >= 0) {
+        app.transfers[index] = record;
+      } else {
+        app.transfers = [...app.transfers, record];
+      }
+    }).then((un) => {
+      if (disposed) un();
+      else unlisten = un;
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  function onRowPause(id: string) {
+    pauseTransfer(id).catch(() => {});
+  }
+  function onRowResume(id: string) {
+    resumeTransfer(id).catch(() => {});
+  }
+  function onRowCancel(id: string) {
+    cancelTransfer(id).catch(() => {});
+  }
 
   function pct(t: (typeof transfers)[number]) {
     if (t.size === 0) return 0;
@@ -77,7 +129,11 @@
       <button class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg">
         <IconPlay size={13} />
       </button>
-      <button class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg">
+      <button
+        class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"
+        title="Clear finished transfers"
+        onclick={() => clearFinishedTransfers().catch(() => {})}
+      >
         <IconTrash size={13} />
       </button>
     </div>
@@ -160,11 +216,13 @@
           <!-- row actions -->
           <div class="flex w-16 items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
             {#if t.status === 'active'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg"><IconPause size={12} /></button>
-            {:else if t.status === 'paused' || t.status === 'failed'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg"><IconPlay size={12} /></button>
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Pause" onclick={() => onRowPause(t.id)}><IconPause size={12} /></button>
+            {:else if t.status === 'paused'}
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Resume" onclick={() => onRowResume(t.id)}><IconPlay size={12} /></button>
             {/if}
-            <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-danger"><IconTrash size={12} /></button>
+            {#if t.status !== 'completed' && t.status !== 'canceled'}
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-danger" title="Cancel" onclick={() => onRowCancel(t.id)}><IconStop size={12} /></button>
+            {/if}
           </div>
         </div>
       {/each}

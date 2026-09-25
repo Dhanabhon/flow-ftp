@@ -33,6 +33,8 @@
     connectionName,
     onNavigate,
     onNavigateTo,
+    onUpload,
+    onDownload,
     error = null
   }: {
     side: 'local' | 'remote';
@@ -47,6 +49,10 @@
     onNavigate?: (name: string) => void;
     /** Click a breadcrumb segment → navigate to that absolute path. */
     onNavigateTo?: (path: string) => void;
+    /** Footer Upload button (local pane). */
+    onUpload?: () => void;
+    /** Footer Download button (remote pane). */
+    onDownload?: () => void;
     /** Pane-level error surfaced by the data layer, null when healthy. */
     error?: string | null;
   } = $props();
@@ -234,11 +240,11 @@
       <span class="truncate text-xs text-danger" title={error}>{error}</span>
     {/if}
     {#if isLocal}
-      <Button variant="default" size="sm" class="ml-auto">
+      <Button variant="default" size="sm" class="ml-auto" onclick={() => onUpload?.()}>
         <IconUpload size={13} /> Upload
       </Button>
     {:else}
-      <Button variant="default" size="sm" class="ml-auto">
+      <Button variant="default" size="sm" class="ml-auto" onclick={() => onDownload?.()}>
         <IconDownload size={13} /> Download
       </Button>
     {/if}

@@ -15,6 +15,7 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::bridge::{ipc_error, ConnectionRegistry, IpcError};
+use crate::transfers::CredentialCache;
 
 /// Request payload for `remote_connect`. The frontend generates the id
 /// (UUID) and owns the connection list; the backend only holds live
@@ -38,6 +39,7 @@ pub struct ConnectRequest {
 #[tauri::command]
 pub async fn remote_connect(
     registry: State<'_, ConnectionRegistry>,
+    cache: State<'_, CredentialCache>,
     request: ConnectRequest,
 ) -> Result<Connection, IpcError> {
     let id = ConnectionId::new(request.id.clone());
@@ -48,9 +50,11 @@ pub async fn remote_connect(
     }
 
     registry
-        .connect(id.clone(), creds)
+        .connect(id.clone(), creds.clone())
         .await
         .map_err(ipc_error)?;
+    // Stash for the transfer engine's own dials (in-memory only).
+    cache.insert(id.clone(), creds);
 
     // Keychain writes are synchronous and touch the OS — off the async runtime.
     if request.save_keychain && !request.password.is_empty() {
@@ -95,12 +99,12 @@ pub async fn remote_connect(
 #[tauri::command]
 pub async fn remote_disconnect(
     registry: State<'_, ConnectionRegistry>,
+    cache: State<'_, CredentialCache>,
     connection_id: String,
 ) -> Result<(), IpcError> {
-    registry
-        .disconnect(&ConnectionId::new(connection_id))
-        .await
-        .map_err(ipc_error)
+    let id = ConnectionId::new(connection_id);
+    cache.remove(&id);
+    registry.disconnect(&id).await.map_err(ipc_error)
 }
 
 /// List a remote directory. A synthetic `..` entry is prepended for
@@ -170,36 +174,6 @@ pub async fn remote_delete(
     let id = ConnectionId::new(connection_id);
     registry
         .delete(&id, FilePath::new(path))
-        .await
-        .map_err(ipc_error)
-}
-
-/// Upload a local file to a remote path.
-#[tauri::command]
-pub async fn remote_upload(
-    registry: State<'_, ConnectionRegistry>,
-    connection_id: String,
-    local_path: String,
-    remote_path: String,
-) -> Result<(), IpcError> {
-    let id = ConnectionId::new(connection_id);
-    registry
-        .upload(&id, FilePath::new(local_path), FilePath::new(remote_path))
-        .await
-        .map_err(ipc_error)
-}
-
-/// Download a remote file to a local path.
-#[tauri::command]
-pub async fn remote_download(
-    registry: State<'_, ConnectionRegistry>,
-    connection_id: String,
-    remote_path: String,
-    local_path: String,
-) -> Result<(), IpcError> {
-    let id = ConnectionId::new(connection_id);
-    registry
-        .download(&id, FilePath::new(remote_path), FilePath::new(local_path))
         .await
         .map_err(ipc_error)
 }

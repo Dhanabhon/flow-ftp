@@ -10,7 +10,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 
-import type { Connection, Protocol, RemoteFile } from './types';
+import type { Connection, Protocol, RemoteFile, Transfer } from './types';
 import { mockLocalFiles, mockRemoteFiles } from './mock';
 
 /** True when running inside the Tauri webview (vs a plain browser). */
@@ -204,4 +204,108 @@ export function listLocal(path: string): Promise<RemoteFile[]> {
     () => call<RemoteFile[]>('local_list', { path }),
     () => mockLocalFiles,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Transfer queue
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Enqueue one file transfer on the engine's queue. */
+export function enqueueTransfer(params: {
+  id: string;
+  connectionId: string;
+  direction: Transfer['direction'];
+  remotePath: string;
+  localPath: string;
+  fileName: string;
+}): Promise<Transfer> {
+  return mockOr(
+    () => call<Transfer>('transfer_enqueue', { request: params }),
+    () => ({
+      id: params.id,
+      fileName: params.fileName,
+      direction: params.direction,
+      size: 0,
+      transferred: 0,
+      speed: 0,
+      status: 'queued',
+      connectionId: params.connectionId,
+      connectionName: '',
+      remotePath: params.remotePath,
+      localPath: params.localPath,
+      resumable: true,
+    }),
+  );
+}
+
+/** Snapshot of every tracked transfer. */
+export function transferList(): Promise<Transfer[]> {
+  return mockOr(
+    () => call<Transfer[]>('transfer_list'),
+    () => [],
+  );
+}
+
+/** Pause a transfer (running: stop at chunk boundary; queued: leave queue). */
+export function pauseTransfer(id: string): Promise<void> {
+  return mockOr(
+    () => call<void>('transfer_pause', { id }),
+    () => undefined,
+  );
+}
+
+/** Resume a paused transfer from its byte offset. */
+export function resumeTransfer(id: string): Promise<void> {
+  return mockOr(
+    () => call<void>('transfer_resume', { id }),
+    () => undefined,
+  );
+}
+
+/** Cancel a transfer. */
+export function cancelTransfer(id: string): Promise<void> {
+  return mockOr(
+    () => call<void>('transfer_cancel', { id }),
+    () => undefined,
+  );
+}
+
+/** Clear completed/failed/canceled records from the queue list. */
+export function clearFinishedTransfers(): Promise<void> {
+  return mockOr(
+    () => call<void>('transfer_clear_finished'),
+    () => undefined,
+  );
+}
+
+/**
+ * Subscribe to live transfer updates from the engine. Returns an
+ * unsubscribe function. Browser mode never fires (no native events).
+ */
+export function onTransferUpdate(
+  handler: (record: Transfer) => void,
+): Promise<() => void> {
+  if (!IS_TAURI) return Promise.resolve(() => {});
+  return import('@tauri-apps/api/event').then(({ listen }) =>
+    listen<Transfer>('transfer:update', (event) => handler(event.payload)).then(
+      (unlisten) => () => unlisten(),
+    ),
+  );
+}
+
+/** Native file picker: choose one or more files to upload. */
+export async function pickFilesToUpload(): Promise<string[]> {
+  if (!IS_TAURI) return [];
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const selection = await open({ multiple: true });
+  if (selection === null) return [];
+  return Array.isArray(selection) ? selection : [selection];
+}
+
+/** Native directory picker: choose where downloads land. */
+export async function pickDownloadDirectory(): Promise<string | null> {
+  if (!IS_TAURI) return null;
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const selection = await open({ directory: true });
+  return selection ?? null;
 }
