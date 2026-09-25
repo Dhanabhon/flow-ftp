@@ -17,6 +17,7 @@
   import CommandPalette from '$lib/components/overlays/CommandPalette.svelte';
   import QuickConnect from '$lib/components/overlays/QuickConnect.svelte';
   import SyncPreview from '$lib/components/overlays/SyncPreview.svelte';
+  import ToastHost from '$lib/components/shell/ToastHost.svelte';
 
   // Global keyboard shortcuts beyond command palette (handled in Header).
   function onKeydown(e: KeyboardEvent) {
@@ -199,3 +200,4 @@
 <CommandPalette />
 <QuickConnect />
 <SyncPreview />
+<ToastHost />

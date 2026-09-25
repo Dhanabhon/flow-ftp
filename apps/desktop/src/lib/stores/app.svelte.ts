@@ -1,6 +1,14 @@
 import type { Connection, RemoteFile, Transfer, View } from '$lib/types';
 import { mockConnections, mockLocalFiles, mockRemoteFiles, mockTransfers } from '$lib/mock';
 
+/** A transient notification. */
+export interface Toast {
+  id: string;
+  kind: 'success' | 'warning' | 'danger';
+  title: string;
+  detail?: string;
+}
+
 /**
  * Global app store using Svelte 5 runes ($state).
  * In production these would be populated via TanStack Query + Tauri invoke();
@@ -34,6 +42,25 @@ class AppState {
     local: null,
     remote: null
   });
+
+  // ── Inspector ─────────────────────────────────────────────────
+  /** The pane + entry the inspector is showing, null when nothing selected. */
+  inspector = $state<{ side: 'local' | 'remote'; name: string } | null>(null);
+
+  // ── Toasts ────────────────────────────────────────────────────
+  /** Transient notifications, bottom-right per DESIGN.md. */
+  toasts = $state<Toast[]>([]);
+
+  /** Push a toast; auto-dismisses after 4 seconds. */
+  notify(kind: Toast['kind'], title: string, detail?: string) {
+    const id = crypto.randomUUID();
+    this.toasts = [...this.toasts, { id, kind, title, detail }];
+    setTimeout(() => this.dismissToast(id), 4_000);
+  }
+
+  dismissToast(id: string) {
+    this.toasts = this.toasts.filter((t) => t.id !== id);
+  }
 
   // ── Transfers ───────────────────────────────────────────────
   transfers = $state<Transfer[]>(mockTransfers);
@@ -84,6 +111,7 @@ class AppState {
     if (next.has(name)) next.delete(name);
     else next.add(name);
     this.localSelected = next;
+    this.inspector = next.size > 0 ? { side: 'local', name } : null;
   }
 
   selectRemote(name: string, additive = false) {
@@ -91,6 +119,7 @@ class AppState {
     if (next.has(name)) next.delete(name);
     else next.add(name);
     this.remoteSelected = next;
+    this.inspector = next.size > 0 ? { side: 'remote', name } : null;
   }
 
   setView(v: View) {

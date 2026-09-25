@@ -43,13 +43,25 @@
         if (!disposed) app.transfers = records;
       })
       .catch(() => {});
+    const seenStatuses = new Map<string, Transfer['status']>();
     onTransferUpdate((record: Transfer) => {
       if (disposed) return;
+      const previous = seenStatuses.get(record.id);
+      seenStatuses.set(record.id, record.status);
       const index = app.transfers.findIndex((t) => t.id === record.id);
       if (index >= 0) {
         app.transfers[index] = record;
       } else {
         app.transfers = [...app.transfers, record];
+      }
+      // Toast on terminal transitions only (never on initial-load echoes).
+      const dir = record.direction === 'upload' ? 'Upload' : 'Download';
+      if (previous && previous !== record.status) {
+        if (record.status === 'completed') {
+          app.notify('success', `${dir} completed`, record.fileName);
+        } else if (record.status === 'failed') {
+          app.notify('danger', `${dir} failed`, record.error ?? record.fileName);
+        }
       }
     }).then((un) => {
       if (disposed) un();
