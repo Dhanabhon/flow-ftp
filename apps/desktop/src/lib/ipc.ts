@@ -10,7 +10,8 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 
-import type { Connection, Protocol, RemoteFile, Transfer } from './types';
+import type { Connection, Protocol, RemoteFile, SyncDiff, SyncDirection, Transfer } from './types';
+import { mockTransfers } from './mock';
 import { mockLocalFiles, mockRemoteFiles } from './mock';
 
 /** True when running inside the Tauri webview (vs a plain browser). */
@@ -308,4 +309,41 @@ export async function pickDownloadDirectory(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const selection = await open({ directory: true });
   return selection ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Smart Sync
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The two trees differ here; see flow-sync for the semantics. */
+export function syncPreview(params: {
+  connectionId: string;
+  localDir: string;
+  remoteDir: string;
+  direction: SyncDirection;
+}): Promise<SyncDiff[]> {
+  return mockOr(
+    () => call<SyncDiff[]>('sync_preview', params),
+    () =>
+      mockTransfers.slice(0, 5).map((t) => ({
+        path: `${t.remotePath}${t.fileName}`,
+        direction: t.direction,
+        size: t.size,
+        reason: t.status === 'failed' ? ('conflict' as const) : ('newer' as const),
+      })),
+  );
+}
+
+/** Execute a reviewed plan (conflicts are skipped server-side). Returns the
+ * number of transfers enqueued. */
+export function syncExecute(params: {
+  connectionId: string;
+  localRoot: string;
+  remoteRoot: string;
+  diffs: SyncDiff[];
+}): Promise<number> {
+  return mockOr(
+    () => call<number>('sync_execute', params),
+    () => params.diffs.length,
+  );
 }

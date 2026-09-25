@@ -1,5 +1,6 @@
 mod bridge;
 mod ipc;
+mod sync;
 mod transfers;
 
 use bridge::ConnectionRegistry;
@@ -29,6 +30,8 @@ pub fn run() {
             transfers::transfer_resume,
             transfers::transfer_cancel,
             transfers::transfer_clear_finished,
+            sync::sync_preview,
+            sync::sync_execute,
         ])
         .setup(|app| {
             // Transfer engine: event forwarding + worker pool.

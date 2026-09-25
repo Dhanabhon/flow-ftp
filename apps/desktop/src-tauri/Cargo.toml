@@ -27,6 +27,9 @@ flow-core = { path = "../../../crates/core" }
 flow-protocols = { path = "../../../crates/protocols" }
 flow-keychain = { path = "../../../crates/keychain" }
 flow-transfer = { path = "../../../crates/transfer" }
+flow-sync = { path = "../../../crates/sync" }
+# Local tree scanning for sync compare.
+walkdir = "2"
 async-trait = { workspace = true }
 tokio = { workspace = true }
 
