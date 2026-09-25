@@ -17,13 +17,14 @@ use std::time::Duration;
 use async_trait::async_trait;
 use flow_core::{
     format_permissions, Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile,
-    RemoteFs, TransferId,
+    RemoteFs,
 };
 use russh::client::{self, Handle};
 use russh::keys::{HashAlg, PublicKeyOrCertificate};
 use russh_sftp::client::error::Error as SftpError;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::error::{map_sftp_error, map_ssh_error};
 
@@ -233,51 +234,48 @@ impl RemoteFs for SftpFs {
         }
     }
 
-    async fn download(
+    async fn open_read(
         &mut self,
-        _id: TransferId,
         remote: &FilePath,
-        local: &FilePath,
-    ) -> CoreResult<()> {
-        use tokio::io::AsyncWriteExt;
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
+        use tokio::io::AsyncSeekExt;
         let sftp = self.require()?;
-        let mut remote_file = sftp
-            .open(remote.as_str())
-            .await
-            .map_err(map_sftp_error)?;
-        let mut file = tokio::fs::File::create(local.as_str())
-            .await
-            .map_err(|e| CoreError::Io(e.to_string()))?;
-        tokio::io::copy(&mut remote_file, &mut file)
-            .await
-            .map_err(|e| CoreError::Io(e.to_string()))?;
-        file.flush().await.map_err(|e| CoreError::Io(e.to_string()))?;
-        Ok(())
+        let mut file = sftp.open(remote.as_str()).await.map_err(map_sftp_error)?;
+        if offset > 0 {
+            // Resume: continue the remote stream from the given offset.
+            file.seek(std::io::SeekFrom::Start(offset))
+                .await
+                .map_err(|e| CoreError::Io(e.to_string()))?;
+        }
+        Ok(Box::new(file))
     }
 
-    async fn upload(
+    async fn open_write(
         &mut self,
-        _id: TransferId,
-        local: &FilePath,
         remote: &FilePath,
-    ) -> CoreResult<()> {
-        use tokio::io::AsyncWriteExt;
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
+        use tokio::io::AsyncSeekExt;
         let sftp = self.require()?;
-        let mut remote_file = sftp
-            .create(remote.as_str())
+        let mut file = if offset > 0 {
+            // Resume: keep existing bytes, continue after them.
+            sftp.open_with_flags(
+                remote.as_str(),
+                russh_sftp::protocol::OpenFlags::WRITE
+                    | russh_sftp::protocol::OpenFlags::CREATE,
+            )
             .await
-            .map_err(map_sftp_error)?;
-        let mut file = tokio::fs::File::open(local.as_str())
-            .await
-            .map_err(|e| CoreError::Io(e.to_string()))?;
-        tokio::io::copy(&mut file, &mut remote_file)
-            .await
-            .map_err(|e| CoreError::Io(e.to_string()))?;
-        remote_file
-            .flush()
-            .await
-            .map_err(|e| CoreError::Io(e.to_string()))?;
-        Ok(())
+            .map_err(map_sftp_error)?
+        } else {
+            sftp.create(remote.as_str()).await.map_err(map_sftp_error)?
+        };
+        if offset > 0 {
+            file.seek(std::io::SeekFrom::Start(offset))
+                .await
+                .map_err(|e| CoreError::Io(e.to_string()))?;
+        }
+        Ok(Box::new(file))
     }
 }
 

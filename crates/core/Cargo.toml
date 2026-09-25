@@ -17,6 +17,8 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 # Dyn-safe async trait for the RemoteFs interchange contract.
 async-trait = { workspace = true }
+# Streaming transfer primitives (open_read/open_write) — the I/O boundary trait.
+tokio = { workspace = true, features = ["fs", "io-util"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }

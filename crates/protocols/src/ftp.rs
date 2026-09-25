@@ -14,12 +14,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use flow_core::{
-    Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile, RemoteFs, TransferId,
+    Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile, RemoteFs,
 };
 use suppaftp::tokio::{
     AsyncFtpStream, AsyncRustlsFtpStream, ImplAsyncFtpStream, TokioTlsStream,
 };
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncRead, AsyncWrite};
 use suppaftp::list::ListParser;
 use suppaftp::FtpError;
 
@@ -127,44 +127,40 @@ async fn delete_any<T: TokioTlsStream + Send>(
     }
 }
 
-/// Download `remote` into `local` over a fresh data connection.
-async fn download_to<T: TokioTlsStream + Send>(
+/// Open a remote file for reading, optionally resuming from `offset`
+/// (FTP `REST` before `RETR`).
+async fn open_read_stream<T: TokioTlsStream + Send + 'static>(
     stream: &mut ImplAsyncFtpStream<T>,
     remote: &FilePath,
-    local: &FilePath,
-) -> CoreResult<()> {
-    let mut data = stream
+    offset: u64,
+) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
+    if offset > 0 {
+        stream
+            .resume_transfer(offset as usize)
+            .await
+            .map_err(map_ftp_error)?;
+    }
+    let data = stream
         .retr_as_stream(remote.as_str())
         .await
         .map_err(map_ftp_error)?;
-    let mut file = tokio::fs::File::create(local.as_str())
-        .await
-        .map_err(|e| CoreError::Io(e.to_string()))?;
-    tokio::io::copy(&mut data, &mut file)
-        .await
-        .map_err(|e| CoreError::Io(e.to_string()))?;
-    file.flush().await.map_err(|e| CoreError::Io(e.to_string()))?;
-    // Closes the data socket and reads the completion reply.
-    data.finish().await.map_err(map_ftp_error)
+    Ok(Box::new(data))
 }
 
-/// Upload `local` to `remote` over a fresh data connection.
-async fn upload_from<T: TokioTlsStream + Send>(
+/// Open a remote file for writing. `offset == 0` stores fresh (STOR);
+/// `offset > 0` appends (APPE) so interrupted uploads resume.
+async fn open_write_stream<T: TokioTlsStream + Send + 'static>(
     stream: &mut ImplAsyncFtpStream<T>,
-    local: &FilePath,
     remote: &FilePath,
-) -> CoreResult<()> {
-    let mut data = stream
-        .put_with_stream(remote.as_str())
-        .await
-        .map_err(map_ftp_error)?;
-    let mut file = tokio::fs::File::open(local.as_str())
-        .await
-        .map_err(|e| CoreError::Io(e.to_string()))?;
-    tokio::io::copy(&mut file, &mut data)
-        .await
-        .map_err(|e| CoreError::Io(e.to_string()))?;
-    data.finish().await.map_err(map_ftp_error)
+    offset: u64,
+) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
+    let data = if offset > 0 {
+        stream.append_with_stream(remote.as_str()).await
+    } else {
+        stream.put_with_stream(remote.as_str()).await
+    }
+    .map_err(map_ftp_error)?;
+    Ok(Box::new(data))
 }
 
 /// Convert a suppaftp list entry into the domain type.
@@ -283,22 +279,20 @@ impl RemoteFs for FtpFs {
         delete_any(self.require()?, path).await
     }
 
-    async fn download(
+    async fn open_read(
         &mut self,
-        _id: TransferId,
         remote: &FilePath,
-        local: &FilePath,
-    ) -> CoreResult<()> {
-        download_to(self.require()?, remote, local).await
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
+        open_read_stream(self.require()?, remote, offset).await
     }
 
-    async fn upload(
+    async fn open_write(
         &mut self,
-        _id: TransferId,
-        local: &FilePath,
         remote: &FilePath,
-    ) -> CoreResult<()> {
-        upload_from(self.require()?, local, remote).await
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
+        open_write_stream(self.require()?, remote, offset).await
     }
 }
 
@@ -417,21 +411,19 @@ impl RemoteFs for FtpsFs {
         delete_any(self.require()?, path).await
     }
 
-    async fn download(
+    async fn open_read(
         &mut self,
-        _id: TransferId,
         remote: &FilePath,
-        local: &FilePath,
-    ) -> CoreResult<()> {
-        download_to(self.require()?, remote, local).await
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
+        open_read_stream(self.require()?, remote, offset).await
     }
 
-    async fn upload(
+    async fn open_write(
         &mut self,
-        _id: TransferId,
-        local: &FilePath,
         remote: &FilePath,
-    ) -> CoreResult<()> {
-        upload_from(self.require()?, local, remote).await
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
+        open_write_stream(self.require()?, remote, offset).await
     }
 }

@@ -14,6 +14,8 @@ use flow_core::{
     ConnectionId, Credentials, CoreError, CoreResult, FilePath, Protocol, RemoteFile, RemoteFs,
     TransferId,
 };
+type BoxedAsyncRead = Box<dyn tokio::io::AsyncRead + Send + Unpin>;
+type BoxedAsyncWrite = Box<dyn tokio::io::AsyncWrite + Send + Unpin>;
 use flow_protocols::{FtpsFs, FtpFs, HostKeyPolicy, SftpFs};
 
 /// Any of the three protocol adapters, behind the domain trait.
@@ -78,6 +80,30 @@ impl RemoteFs for Adapter {
             Adapter::Ftp(fs) => fs.delete(path).await,
             Adapter::Ftps(fs) => fs.delete(path).await,
             Adapter::Sftp(fs) => fs.delete(path).await,
+        }
+    }
+
+    async fn open_read(
+        &mut self,
+        remote: &FilePath,
+        offset: u64,
+    ) -> CoreResult<BoxedAsyncRead> {
+        match self {
+            Adapter::Ftp(fs) => fs.open_read(remote, offset).await,
+            Adapter::Ftps(fs) => fs.open_read(remote, offset).await,
+            Adapter::Sftp(fs) => fs.open_read(remote, offset).await,
+        }
+    }
+
+    async fn open_write(
+        &mut self,
+        remote: &FilePath,
+        offset: u64,
+    ) -> CoreResult<BoxedAsyncWrite> {
+        match self {
+            Adapter::Ftp(fs) => fs.open_write(remote, offset).await,
+            Adapter::Ftps(fs) => fs.open_write(remote, offset).await,
+            Adapter::Sftp(fs) => fs.open_write(remote, offset).await,
         }
     }
 
@@ -337,6 +363,20 @@ mod tests {
             unreachable!()
         }
         async fn delete(&mut self, _path: &FilePath) -> CoreResult<()> {
+            unreachable!()
+        }
+        async fn open_read(
+            &mut self,
+            _remote: &FilePath,
+            _offset: u64,
+        ) -> CoreResult<BoxedAsyncRead> {
+            unreachable!()
+        }
+        async fn open_write(
+            &mut self,
+            _remote: &FilePath,
+            _offset: u64,
+        ) -> CoreResult<BoxedAsyncWrite> {
             unreachable!()
         }
         async fn download(

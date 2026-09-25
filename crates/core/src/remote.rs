@@ -10,15 +10,21 @@
 //! unit-testable with a mock adapter. The dynamic-dispatch cost is negligible
 //! next to a network round trip.
 //!
+//! Transfers stream through `open_read` / `open_write` so callers (the
+//! transfer engine) own the copy loop — that is where pause/cancel control,
+//! progress sampling, and bandwidth limiting live. The offset parameter makes
+//! every transfer resumable: FTP maps it to `REST`/`APPE`, SFTP to a seek.
+//!
 //! Every method takes `&mut self`: an adapter owns a live, stateful session
 //! (TCP socket, SSH channel, TLS state). Shared concurrent access is the
 //! Application Layer's concern — wrap the adapter in a lock there if needed;
 //! the domain keeps the contract explicit.
 
 use async_trait::async_trait;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::credentials::Credentials;
-use crate::error::CoreResult;
+use crate::error::{CoreError, CoreResult};
 use crate::file::{FilePath, RemoteFile};
 use crate::transfer::TransferId;
 
@@ -48,20 +54,61 @@ pub trait RemoteFs: Send {
     /// Delete a file or empty directory.
     async fn delete(&mut self, path: &FilePath) -> CoreResult<()>;
 
-    /// Download `remote` into `local`. The byte stream is owned by the
-    /// adapter; the domain only owns the outcome.
+    /// Open a remote file for reading, starting at `offset` bytes in.
+    /// `offset > 0` resumes an interrupted download (FTP `REST`, SFTP seek).
+    async fn open_read(
+        &mut self,
+        remote: &FilePath,
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>>;
+
+    /// Open a remote file for writing, starting at `offset` bytes in.
+    /// `offset == 0` truncates/overwrites; `offset > 0` resumes an interrupted
+    /// upload (FTP `APPE`, SFTP seek). The file is created when missing.
+    async fn open_write(
+        &mut self,
+        remote: &FilePath,
+        offset: u64,
+    ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>>;
+
+    /// Download `remote` into `local`, overwriting it. Convenience over
+    /// [`Self::open_read`] for callers that do not need the streaming loop.
     async fn download(
         &mut self,
-        id: TransferId,
+        _id: TransferId,
         remote: &FilePath,
         local: &FilePath,
-    ) -> CoreResult<()>;
+    ) -> CoreResult<()> {
+        use tokio::io::AsyncWriteExt;
+        let mut reader = self.open_read(remote, 0).await?;
+        let mut file = tokio::fs::File::create(local.as_str())
+            .await
+            .map_err(|e| CoreError::Io(e.to_string()))?;
+        tokio::io::copy(&mut reader, &mut file)
+            .await
+            .map_err(|e| CoreError::Io(e.to_string()))?;
+        file.flush().await.map_err(|e| CoreError::Io(e.to_string()))
+    }
 
-    /// Upload `local` to `remote`. See [`Self::download`].
+    /// Upload `local` to `remote`, overwriting it. Convenience over
+    /// [`Self::open_write`] for callers that do not need the streaming loop.
     async fn upload(
         &mut self,
-        id: TransferId,
+        _id: TransferId,
         local: &FilePath,
         remote: &FilePath,
-    ) -> CoreResult<()>;
+    ) -> CoreResult<()> {
+        use tokio::io::AsyncWriteExt;
+        let mut writer = self.open_write(remote, 0).await?;
+        let mut file = tokio::fs::File::open(local.as_str())
+            .await
+            .map_err(|e| CoreError::Io(e.to_string()))?;
+        tokio::io::copy(&mut file, &mut writer)
+            .await
+            .map_err(|e| CoreError::Io(e.to_string()))?;
+        writer
+            .flush()
+            .await
+            .map_err(|e| CoreError::Io(e.to_string()))
+    }
 }
