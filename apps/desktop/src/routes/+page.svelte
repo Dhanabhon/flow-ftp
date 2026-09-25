@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
+  import { IS_TAURI, listLocal, listRemote, localHome } from '$lib/ipc';
   import Header from '$lib/components/shell/Header.svelte';
   import Sidebar from '$lib/components/shell/Sidebar.svelte';
   import FilePane from '$lib/components/shell/FilePane.svelte';
@@ -24,6 +25,76 @@
       app.toggleHidden();
     }
   }
+
+  // ── Live data wiring (Tauri only; browser dev stays on mocks) ─────────────
+
+  // Initialize the local pane at the user's home directory.
+  if (IS_TAURI) {
+    localHome()
+      .then((home) => (app.localPath = home))
+      .catch(() => {});
+  }
+
+  // Local listing follows the local path.
+  $effect(() => {
+    if (!IS_TAURI) return;
+    const path = app.localPath;
+    listLocal(path)
+      .then((files) => {
+        app.localFiles = files;
+        app.errors.local = null;
+      })
+      .catch((e: Error) => (app.errors.local = e.message));
+  });
+
+  // Remote listing follows the active connection + remote path.
+  $effect(() => {
+    if (!IS_TAURI) return;
+    const connectionId = app.activeConnectionId;
+    const path = app.remotePath;
+    if (!connectionId) {
+      app.remoteFiles = [];
+      return;
+    }
+    listRemote(connectionId, path)
+      .then((files) => {
+        app.remoteFiles = files;
+        app.errors.remote = null;
+      })
+      .catch((e: Error) => (app.errors.remote = e.message));
+  });
+
+  // ── Navigation handlers ───────────────────────────────────────────────────
+
+  /** Navigate the local pane; `..` goes up one level. */
+  function navigateLocal(name: string) {
+    if (name === '..') {
+      const parts = app.localPath.split('/').filter(Boolean);
+      parts.pop();
+      app.localPath = '/' + parts.join('/');
+    } else {
+      app.localPath = joinPath(app.localPath, name);
+    }
+    app.localSelected = new Set();
+  }
+
+  /** Navigate the remote pane; `..` goes up one level. */
+  function navigateRemote(name: string) {
+    if (name === '..') {
+      const parts = app.remotePath.split('/').filter(Boolean);
+      parts.pop();
+      app.remotePath = '/' + parts.join('/');
+    } else {
+      app.remotePath = joinPath(app.remotePath, name);
+    }
+    app.remoteSelected = new Set();
+  }
+
+  /** POSIX join with root normalization. */
+  function joinPath(base: string, child: string): string {
+    if (base === '/') return `/${child}`;
+    return `${base.replace(/\/+$/, '')}/${child}`;
+  }
 </script>
 
 <svelte:window on:keydown={onKeydown} />
@@ -45,6 +116,9 @@
           selected={app.localSelected}
           onSelect={app.selectLocal.bind(app)}
           showHidden={app.showHidden}
+          onNavigate={navigateLocal}
+          onNavigateTo={(path) => (app.localPath = path)}
+          error={app.errors.local}
         />
         <FilePane
           side="remote"
@@ -55,6 +129,9 @@
           onSelect={app.selectRemote.bind(app)}
           showHidden={app.showHidden}
           connectionName={app.activeConnection?.name}
+          onNavigate={navigateRemote}
+          onNavigateTo={(path) => (app.remotePath = path)}
+          error={app.errors.remote}
         />
         <PreviewPanel />
       </div>

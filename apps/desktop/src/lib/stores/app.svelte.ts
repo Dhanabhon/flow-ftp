@@ -29,6 +29,11 @@ class AppState {
   localSelected = $state<Set<string>>(new Set());
   remoteSelected = $state<Set<string>>(new Set());
   showHidden = $state(false);
+  /** Last pane-level error per side, null when clear. */
+  errors = $state<{ local: string | null; remote: string | null }>({
+    local: null,
+    remote: null
+  });
 
   // ── Transfers ───────────────────────────────────────────────
   transfers = $state<Transfer[]>(mockTransfers);
@@ -45,6 +50,27 @@ class AppState {
   }
 
   // ── Actions ─────────────────────────────────────────────────
+  /** Register (or update) a connection and make it active. */
+  upsertConnection(connection: Connection) {
+    const index = this.connections.findIndex((c) => c.id === connection.id);
+    if (index >= 0) {
+      this.connections[index] = connection;
+    } else {
+      this.connections = [...this.connections, connection];
+    }
+    this.activeConnectionId = connection.id;
+  }
+
+  /** Mark a connection disconnected and drop it from the active slot. */
+  markDisconnected(connectionId: string) {
+    this.connections = this.connections.map((c) =>
+      c.id === connectionId ? { ...c, status: 'disconnected' as const } : c
+    );
+    if (this.activeConnectionId === connectionId) {
+      this.activeConnectionId = null;
+    }
+  }
+
   toggleHidden() {
     this.showHidden = !this.showHidden;
   }

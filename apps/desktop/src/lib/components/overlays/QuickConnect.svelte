@@ -1,11 +1,12 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
+  import { connect } from '$lib/ipc';
   import type { Protocol } from '$lib/types';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
-  import { IconZap, IconLock, IconGlobe, IconServer } from '$lib/components/icons';
+  import { IconZap, IconLock, IconGlobe, IconServer, IconAlert, IconLoader } from '$lib/components/icons';
 
   let protocol = $state<Protocol>('sftp');
   let host = $state('');
@@ -13,6 +14,8 @@
   let username = $state('');
   let password = $state('');
   let saveToKeychain = $state(true);
+  let connecting = $state(false);
+  let errorMessage = $state<string | null>(null);
 
   const protocols: { id: Protocol; label: string; desc: string; port: number; secure: boolean }[] = [
     { id: 'sftp', label: 'SFTP', desc: 'SSH File Transfer', port: 22, secure: true },
@@ -23,6 +26,35 @@
   function chooseProtocol(p: (typeof protocols)[number]) {
     protocol = p.id;
     port = p.port;
+  }
+
+  /** Establish the session (real backend under Tauri, mock in the browser). */
+  async function submit() {
+    if (!host.trim() || connecting) return;
+    connecting = true;
+    errorMessage = null;
+    try {
+      const connection = await connect({
+        id: crypto.randomUUID(),
+        protocol,
+        host: host.trim(),
+        port,
+        username: username.trim() || 'anonymous',
+        password,
+        saveKeychain: saveToKeychain
+      });
+      app.upsertConnection(connection);
+      app.remotePath = '/';
+      app.quickConnectOpen = false;
+      // Reset the form for the next connect.
+      host = '';
+      username = '';
+      password = '';
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      connecting = false;
+    }
   }
 </script>
 
@@ -118,10 +150,22 @@
     {/if}
   </label>
 
+  <!-- Connection error, with suggested fix per the UX error rules -->
+  {#if errorMessage}
+    <div class="mt-3 flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-2.5">
+      <IconAlert size={14} class="mt-0.5 shrink-0 text-danger" />
+      <span class="text-xs text-danger">{errorMessage}</span>
+    </div>
+  {/if}
+
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (app.quickConnectOpen = false)}>Cancel</Button>
-    <Button onclick={() => (app.quickConnectOpen = false)}>
-      <IconZap size={14} /> Connect
+    <Button onclick={submit} disabled={connecting || !host.trim()}>
+      {#if connecting}
+        <IconLoader size={14} class="animate-spin" /> Connecting…
+      {:else}
+        <IconZap size={14} /> Connect
+      {/if}
     </Button>
   {/snippet}
 </Modal>

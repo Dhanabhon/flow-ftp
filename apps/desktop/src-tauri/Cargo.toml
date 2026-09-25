@@ -21,6 +21,12 @@ tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Workspace crates — the application layer.
+flow-core = { path = "../../../crates/core" }
+flow-protocols = { path = "../../../crates/protocols" }
+flow-keychain = { path = "../../../crates/keychain" }
+async-trait = { workspace = true }
+tokio = { workspace = true }
 
 [features]
 # By default do not enable custom protocol — it's opt-in and needs setup.
@@ -28,3 +34,6 @@ default = []
 # This feature is used for production builds or when a dev server is not
 # specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

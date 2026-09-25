@@ -1,9 +1,27 @@
+mod bridge;
+mod ipc;
+
+use bridge::ConnectionRegistry;
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    use tauri::Manager;
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(ConnectionRegistry::default())
+        .invoke_handler(tauri::generate_handler![
+            ipc::remote_connect,
+            ipc::remote_disconnect,
+            ipc::remote_list,
+            ipc::remote_stat,
+            ipc::remote_mkdir,
+            ipc::remote_rename,
+            ipc::remote_delete,
+            ipc::remote_upload,
+            ipc::remote_download,
+            ipc::local_home,
+            ipc::local_list,
+        ])
         .setup(|app| {
             // DevTools are force-enabled in debug builds by Tauri. Close them on
             // startup so they don't auto-open during development. Users who need
@@ -12,7 +30,7 @@ pub fn run() {
             #[cfg(debug_assertions)]
             {
                 if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.close_devtools();
+                    win.close_devtools();
                 }
             }
             Ok(())

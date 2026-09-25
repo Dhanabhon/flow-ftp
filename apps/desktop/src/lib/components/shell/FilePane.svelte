@@ -30,7 +30,10 @@
     selected,
     onSelect,
     showHidden = false,
-    connectionName
+    connectionName,
+    onNavigate,
+    onNavigateTo,
+    error = null
   }: {
     side: 'local' | 'remote';
     title: string;
@@ -40,6 +43,12 @@
     onSelect: (name: string, additive?: boolean) => void;
     showHidden?: boolean;
     connectionName?: string;
+    /** Double-click a directory row → navigate into it. */
+    onNavigate?: (name: string) => void;
+    /** Click a breadcrumb segment → navigate to that absolute path. */
+    onNavigateTo?: (path: string) => void;
+    /** Pane-level error surfaced by the data layer, null when healthy. */
+    error?: string | null;
   } = $props();
 
   const isLocal = $derived(side === 'local');
@@ -135,12 +144,21 @@
 
   <!-- Breadcrumb -->
   <div class="flex h-8 items-center gap-0.5 border-b border-border px-2.5 text-xs text-fg-subtle">
-    <button class="rounded px-1.5 py-0.5 hover:bg-bg-hover hover:text-fg">
+    <button
+      class="rounded px-1.5 py-0.5 hover:bg-bg-hover hover:text-fg"
+      onclick={() => onNavigateTo?.('/')}
+      title="Go to root"
+    >
       <IconHome size={12} />
     </button>
     {#each segments as seg, i}
       <IconChevronRight size={11} class="text-fg-faint" />
-      <button class="rounded px-1.5 py-0.5 hover:bg-bg-hover hover:text-fg">{seg.label}</button>
+      <button
+        class="rounded px-1.5 py-0.5 hover:bg-bg-hover hover:text-fg"
+        onclick={() => onNavigateTo?.(seg.path)}
+      >
+        {seg.label}
+      </button>
     {/each}
   </div>
 
@@ -181,6 +199,10 @@
           isSel ? 'bg-bg-active text-fg' : 'text-fg-muted hover:bg-bg-hover'
         )}
         onclick={(e) => onSelect(f.name, e.metaKey || e.ctrlKey || e.shiftKey)}
+        ondblclick={() => {
+          if (f.kind === 'directory') onNavigate?.(f.name);
+        }}
+        title={f.kind === 'directory' ? 'Double-click to open' : undefined}
       >
         <Icon size={15} class={cn('shrink-0', iconColor(f))} />
         <span class={cn('flex-1 truncate', f.kind === 'directory' && 'font-medium')}>
@@ -208,6 +230,9 @@
 
   <!-- Action footer -->
   <div class="flex h-9 items-center gap-1.5 border-t border-border bg-bg/40 px-2.5">
+    {#if error}
+      <span class="truncate text-xs text-danger" title={error}>{error}</span>
+    {/if}
     {#if isLocal}
       <Button variant="default" size="sm" class="ml-auto">
         <IconUpload size={13} /> Upload
