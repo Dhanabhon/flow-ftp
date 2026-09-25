@@ -51,7 +51,6 @@ import Maximize from 'lucide-svelte/icons/maximize';
 import Info from 'lucide-svelte/icons/info';
 import ListIcon from 'lucide-svelte/icons/list';
 import GridIcon from 'lucide-svelte/icons/layout-grid';
-import Columns from 'lucide-svelte/icons/columns-3';
 import Key from 'lucide-svelte/icons/key-round';
 import Cpu from 'lucide-svelte/icons/cpu';
 import Activity from 'lucide-svelte/icons/activity';
@@ -116,7 +115,6 @@ export {
   Info as IconInfo,
   ListIcon as IconList,
   GridIcon as IconGrid,
-  Columns as IconColumns,
   Key as IconKey,
   Cpu as IconCpu,
   Activity as IconActivity,

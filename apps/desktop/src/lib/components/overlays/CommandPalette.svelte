@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
+import { theme } from '$lib/stores/theme.svelte';
   import { mockCommands, type Command } from '$lib/mock';
   import { cn } from '$lib/utils';
   import {
@@ -79,15 +80,12 @@
   }
 
   function runCommand(cmd: Command) {
-    // Mock behavior — just close + route based on id
-    if (cmd.id === 'quick-connect') app.quickConnectOpen = true;
+    if (cmd.id === 'quick-connect' || cmd.id === 'new-conn') app.quickConnectOpen = true;
     else if (cmd.id === 'sync') app.syncOpen = true;
-    else if (cmd.id === 'go-connections') app.setView('connections');
+    else if (cmd.id === 'go-browser') app.setView('connections');
     else if (cmd.id === 'go-transfers') app.setView('transfers');
-    else if (cmd.id === 'go-sync') app.setView('sync');
-    else if (cmd.id === 'go-history') app.setView('history');
-    else if (cmd.id === 'go-settings') app.setView('settings');
     else if (cmd.id === 'toggle-hidden') app.toggleHidden();
+    else if (cmd.id === 'toggle-theme') theme.toggle();
     app.commandPaletteOpen = false;
     query = '';
     activeIndex = 0;

@@ -7,8 +7,7 @@
     IconPlug,
     IconArrowUpDown,
     IconRefresh,
-    IconHistory,
-    IconSettings,
+
     IconStar,
     IconClock,
     IconTrash,
@@ -21,12 +20,12 @@
   } from '$lib/components/icons';
   import Badge from '$lib/components/ui/badge.svelte';
 
-  const nav: { id: View; label: string; icon: any; shortcut: string }[] = [
-    { id: 'connections', label: 'Connections', icon: IconPlug, shortcut: '⌘1' },
+  // Honest nav: only destinations that exist. Sync opens the planner modal;
+  // History/Settings return when they have content.
+  const nav: { id: View | 'sync'; label: string; icon: any; shortcut: string }[] = [
+    { id: 'connections', label: 'Browser', icon: IconPlug, shortcut: '⌘1' },
     { id: 'transfers', label: 'Transfers', icon: IconArrowUpDown, shortcut: '⌘2' },
-    { id: 'sync', label: 'Sync', icon: IconRefresh, shortcut: '⌘3' },
-    { id: 'history', label: 'History', icon: IconHistory, shortcut: '⌘4' },
-    { id: 'settings', label: 'Settings', icon: IconSettings, shortcut: '⌘,' }
+    { id: 'sync', label: 'Sync', icon: IconRefresh, shortcut: '⌘⇧S' }
   ];
 
   let activeView = $derived(app.view);
@@ -125,7 +124,13 @@
             ? 'bg-bg-active text-fg'
             : 'text-fg-muted hover:bg-bg-hover hover:text-fg'
         )}
-        onclick={() => app.setView(item.id)}
+        onclick={() => {
+          if (item.id === 'sync') {
+            app.syncOpen = true;
+          } else {
+            app.setView(item.id as View);
+          }
+        }}
       >
         <item.icon size={16} class={cn(active && 'text-accent')} />
         <span class="flex-1 text-left">{item.label}</span>

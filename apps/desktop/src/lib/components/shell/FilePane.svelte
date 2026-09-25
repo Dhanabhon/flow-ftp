@@ -11,17 +11,15 @@
     IconCloud,
     IconChevronRight,
     IconHome,
-    IconArrowLeft,
     IconRefresh,
-    IconMoreHorizontal,
     IconPlus,
     IconPencil,
     IconFolderPlus,
     IconTrash,
+    IconPlug,
+    IconZap,
     IconUpload,
     IconDownload,
-    IconList,
-    IconGrid
   } from '$lib/components/icons';
   import Button from '$lib/components/ui/button.svelte';
   import Tooltip from '$lib/components/ui/tooltip.svelte';
@@ -40,6 +38,9 @@
     onUpload,
     onDownload,
     onEdit,
+    onRefresh,
+    disconnected = false,
+    onConnect,
     onCreateFolder,
     onRename,
     onDelete,
@@ -53,16 +54,22 @@
     onSelect: (name: string, additive?: boolean) => void;
     showHidden?: boolean;
     connectionName?: string;
-    /** Double-click a directory row → navigate into it. */
+    /** Double-click a directory row -> navigate into it. */
     onNavigate?: (name: string) => void;
-    /** Click a breadcrumb segment → navigate to that absolute path. */
+    /** Click a breadcrumb segment -> navigate to that absolute path. */
     onNavigateTo?: (path: string) => void;
     /** Footer Upload button (local pane). */
     onUpload?: () => void;
     /** Footer Download button (remote pane). */
     onDownload?: () => void;
-    /** Double-click a remote file → open it for editing. */
+    /** Double-click a remote file -> open it for editing. */
     onEdit?: (name: string) => void;
+    /** Refresh this pane's listing. */
+    onRefresh?: () => void;
+    /** True when the pane's source is unavailable (remote, not connected). */
+    disconnected?: boolean;
+    /** Open the connect flow (disconnected empty state CTA). */
+    onConnect?: () => void;
     /** Create a directory in this pane. */
     onCreateFolder?: (name: string) => void;
     /** Rename an entry in this pane. */
@@ -113,7 +120,7 @@
     showHidden ? files : files.filter((f) => !f.name.startsWith('.') || f.name === '..')
   );
 
-  // Header sort state (mock — sorts by name asc by default)
+  // Sort state (applies to the rendered list; directories group first)
   let sortKey = $state<'name' | 'size' | 'modified'>('name');
   let sortDir = $state<'asc' | 'desc'>('asc');
 
@@ -184,14 +191,15 @@
     {/if}
 
     <div class="ml-auto flex items-center gap-0.5">
-      <Tooltip label="Back">
-        <Button variant="ghost" size="icon-sm"><IconArrowLeft size={14} /></Button>
-      </Tooltip>
       <Tooltip label="Up">
-        <Button variant="ghost" size="icon-sm"><IconHome size={14} /></Button>
+        <Button variant="ghost" size="icon-sm" onclick={() => onNavigate?.('..')}>
+          <IconHome size={14} />
+        </Button>
       </Tooltip>
       <Tooltip label="Refresh">
-        <Button variant="ghost" size="icon-sm"><IconRefresh size={14} /></Button>
+        <Button variant="ghost" size="icon-sm" onclick={onRefresh}>
+          <IconRefresh size={14} />
+        </Button>
       </Tooltip>
       <Tooltip label="New folder">
         <Button
@@ -222,9 +230,7 @@
           <IconTrash size={14} />
         </Button>
       </Tooltip>
-      <Tooltip label="More">
-        <Button variant="ghost" size="icon-sm"><IconMoreHorizontal size={14} /></Button>
-      </Tooltip>
+
     </div>
   </div>
 
@@ -344,7 +350,16 @@
       </button>
     {/each}
 
-    {#if sorted.length === 0}
+    {#if disconnected}
+      <div class="flex h-full flex-col items-center justify-center gap-3 py-12 text-fg-subtle">
+        <IconPlug size={28} class="opacity-40" />
+        <p class="text-sm font-medium text-fg-muted">Not connected</p>
+        <p class="max-w-48 text-center text-xs">Connect to a server to browse its files.</p>
+        <Button variant="default" size="sm" onclick={onConnect}>
+          <IconZap size={13} /> Connect
+        </Button>
+      </div>
+    {:else if sorted.length === 0}
       <div class="flex h-full flex-col items-center justify-center gap-2 py-12 text-fg-faint">
         <IconFolder size={28} class="opacity-40" />
         <p class="text-sm">Empty directory</p>

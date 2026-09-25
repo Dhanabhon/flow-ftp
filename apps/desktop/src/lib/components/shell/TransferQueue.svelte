@@ -29,6 +29,9 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import Progress from '$lib/components/ui/progress.svelte';
 
+  /** Full-height rendering for the dedicated Transfers view. */
+  let { expanded = false }: { expanded?: boolean } = $props();
+
   const transfers = $derived(app.transfers);
 
   // Live wiring: replace-by-id snapshots from the engine (Tauri only).
@@ -122,7 +125,12 @@
   }
 </script>
 
-<div class="flex flex-col border-t border-border bg-bg-elevated">
+<div
+  class="flex flex-col border-border bg-bg-elevated"
+  class:border-t={!expanded}
+  class:flex-1={expanded}
+  class:min-h-0={expanded}
+>
   <!-- Header bar -->
   <div class="flex h-9 items-center gap-2 px-3">
     <button
@@ -162,12 +170,7 @@
           {/each}
         </select>
       </label>
-      <button class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg">
-        <IconPause size={13} />
-      </button>
-      <button class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg">
-        <IconPlay size={13} />
-      </button>
+
       <button
         class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"
         title="Clear finished transfers"
@@ -179,7 +182,7 @@
   </div>
 
   {#if !app.queueCollapsed}
-    <div class="max-h-56 overflow-y-auto border-t border-border">
+    <div class={expanded ? 'min-h-0 flex-1 overflow-y-auto border-t border-border' : 'max-h-56 overflow-y-auto border-t border-border'}>
       <!-- Column header -->
       <div class="flex h-6 items-center gap-3 px-3 text-[10px] font-semibold uppercase tracking-wider text-fg-faint">
         <span class="w-4"></span>

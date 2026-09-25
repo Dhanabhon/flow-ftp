@@ -26,16 +26,18 @@
   import SyncPreview from '$lib/components/overlays/SyncPreview.svelte';
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
 
-  // Global keyboard shortcuts beyond command palette (handled in Header).
+  // Global keyboard shortcuts — every binding advertised in the UI exists.
   function onKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && ['1', '2', '3', '4'].includes(e.key)) {
+    if (mod && e.key === '1') {
       e.preventDefault();
-      const views = ['connections', 'transfers', 'sync', 'history'] as const;
-      app.setView(views[Number(e.key) - 1]);
-    } else if (mod && e.key === ',') {
+      app.setView('connections');
+    } else if (mod && e.key === '2') {
       e.preventDefault();
-      app.setView('settings');
+      app.setView('transfers');
+    } else if (mod && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      app.syncOpen = true;
     } else if (mod && e.shiftKey && e.key.toLowerCase() === '.') {
       e.preventDefault();
       app.toggleHidden();
@@ -48,7 +50,16 @@
   $effect(() => {
     if (!IS_TAURI) return;
     profileList()
-      .then((profiles) => (app.connections = profiles))
+      .then((profiles) => {
+        app.connections = profiles;
+        // The mock seed's active connection does not exist here; start clean.
+        if (app.activeConnectionId && !profiles.some((p) => p.id === app.activeConnectionId)) {
+          app.activeConnectionId = null;
+          app.remoteFiles = [];
+          app.remoteSelected = new Set();
+          app.inspector = null;
+        }
+      })
       .catch(() => {});
   });
 
@@ -240,8 +251,13 @@
   <div class="flex min-h-0 flex-1">
     <Sidebar />
 
-    <!-- Main content area: dual pane + preview -->
+    <!-- Main content area -->
     <main class="flex min-w-0 flex-1 flex-col">
+      {#if app.view === 'transfers'}
+        <div class="flex min-h-0 flex-1 flex-col">
+          <TransferQueue expanded />
+        </div>
+      {:else}
       <div class="flex min-h-0 flex-1">
         <FilePane
           side="local"
@@ -272,6 +288,8 @@
           onNavigateTo={(path) => (app.remotePath = path)}
           onDownload={handleDownload}
           onEdit={handleEdit}
+          disconnected={!app.activeConnectionId}
+          onConnect={() => (app.quickConnectOpen = true)}
           onCreateFolder={(name) => handleCreateFolder('remote', name)}
           onRename={(from, to) => handleRename('remote', from, to)}
           onDelete={(names) => handleDelete('remote', names)}
@@ -281,6 +299,7 @@
       </div>
 
       <TransferQueue />
+      {/if}
     </main>
   </div>
 </div>

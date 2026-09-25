@@ -171,20 +171,15 @@ export interface Command {
   icon?: string;
 }
 
+// Every command here is wired in CommandPalette.runCommand — no dead entries.
 export const mockCommands: Command[] = [
-  { id: 'new-conn', label: 'New Connection…', group: 'Actions', shortcut: ['⌘', 'N'], icon: 'plus' },
   { id: 'quick-connect', label: 'Quick Connect…', group: 'Actions', shortcut: ['⌘', 'K'], icon: 'zap' },
+  { id: 'new-conn', label: 'New Connection…', group: 'Actions', shortcut: ['⌘', 'N'], icon: 'plus' },
   { id: 'sync', label: 'Synchronize Folder…', group: 'Actions', shortcut: ['⌘', '⇧', 'S'], icon: 'refresh-cw' },
-  { id: 'upload', label: 'Upload Files…', group: 'Actions', shortcut: ['⌘', 'U'], icon: 'upload' },
-  { id: 'download', label: 'Download Selected', group: 'Actions', shortcut: ['⌘', 'D'], icon: 'download' },
-  { id: 'go-connections', label: 'Connections', group: 'Navigate', shortcut: ['⌘', '1'], icon: 'plug' },
-  { id: 'go-transfers', label: 'Transfers', group: 'Navigate', shortcut: ['⌘', '2'], icon: 'arrow-up-down' },
-  { id: 'go-sync', label: 'Sync', group: 'Navigate', shortcut: ['⌘', '3'], icon: 'refresh-cw' },
-  { id: 'go-history', label: 'History', group: 'Navigate', shortcut: ['⌘', '4'], icon: 'history' },
-  { id: 'go-settings', label: 'Settings', group: 'Navigate', shortcut: ['⌘', ','], icon: 'settings' },
-  { id: 'conn-prod', label: 'Connect to Production Server', group: 'Connections', icon: 'server' },
-  { id: 'conn-staging', label: 'Connect to Staging Box', group: 'Connections', icon: 'server' },
-  { id: 'toggle-hidden', label: 'Toggle Hidden Files', group: 'View', shortcut: ['⌘', '⇧', '.'], icon: 'eye' }
+  { id: 'go-browser', label: 'Go to Browser', group: 'Navigate', shortcut: ['⌘', '1'], icon: 'plug' },
+  { id: 'go-transfers', label: 'Go to Transfers', group: 'Navigate', shortcut: ['⌘', '2'], icon: 'arrow-up-down' },
+  { id: 'toggle-hidden', label: 'Toggle Hidden Files', group: 'View', shortcut: ['⌘', '⇧', '.'], icon: 'eye' },
+  { id: 'toggle-theme', label: 'Toggle Theme', group: 'View', icon: 'eye' }
 ];
 
 /** Synthetic preview payload for the right-hand Preview panel. */

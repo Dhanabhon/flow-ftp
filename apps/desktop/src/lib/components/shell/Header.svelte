@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { app } from '$lib/stores/app.svelte';
-  import { IconSearch, IconPlus, IconRefresh, IconCommand, IconZap } from '$lib/components/icons';
+  import { IconSearch, IconPlus, IconCommand, IconZap } from '$lib/components/icons';
   import Tooltip from '$lib/components/ui/tooltip.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
@@ -76,13 +76,8 @@
         <IconZap size={15} />
       </Button>
     </Tooltip>
-    <Tooltip label="Refresh">
-      <Button variant="ghost" size="icon-sm">
-        <IconRefresh size={15} />
-      </Button>
-    </Tooltip>
     <Tooltip label="New connection">
-      <Button variant="ghost" size="icon-sm">
+      <Button variant="ghost" size="icon-sm" onclick={() => (app.quickConnectOpen = true)}>
         <IconPlus size={15} />
       </Button>
     </Tooltip>
