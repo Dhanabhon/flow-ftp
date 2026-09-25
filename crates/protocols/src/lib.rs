@@ -9,6 +9,7 @@
 //! | --- | --- | --- |
 //! | [`FtpFs`] | FTP | suppaftp |
 //! | [`FtpsFs`] | FTPS (explicit + implicit TLS) | suppaftp + rustls |
+//! | [`SftpFs`] | SFTP | russh + russh-sftp |
 //!
 //! Live-server integration tests are `#[ignore]`-tagged and driven by
 //! environment variables so `cargo test` stays green without infrastructure.
@@ -17,7 +18,9 @@
 
 pub mod error;
 pub mod ftp;
+pub mod sftp;
 pub mod tls;
 
-pub use error::map_ftp_error;
+pub use error::{map_ftp_error, map_sftp_error, map_ssh_error};
 pub use ftp::{FtpsFs, FtpsMode, FtpFs};
+pub use sftp::{HostKeyPolicy, SftpFs};

@@ -19,6 +19,9 @@ rustls = { version = "0.23", default-features = false, features = ["logging", "r
 tokio-rustls = "0.26"
 # Validate server certificates against the OS trust store (Keychain on macOS).
 rustls-platform-verifier = "0.6"
+# SFTP transport (SSH2) + the SFTP subsystem protocol on top of it.
+russh = "0.63"
+russh-sftp = "3"
 tokio = { workspace = true }
 
 [dev-dependencies]

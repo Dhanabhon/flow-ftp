@@ -6,6 +6,9 @@
 //! fix it" messages.
 
 use flow_core::CoreError;
+use russh::Error as SshError;
+use russh_sftp::client::error::Error as SftpError;
+use russh_sftp::protocol::StatusCode;
 use suppaftp::types::Response;
 use suppaftp::{FtpError, Status};
 
@@ -49,6 +52,49 @@ fn map_response(response: Response) -> CoreError {
         Status::NotAvailable | Status::CannotOpenDataConnection | Status::TransferAborted => {
             CoreError::Transfer(text)
         }
+        _ => CoreError::Protocol(text),
+    }
+}
+
+/// Map an SSH transport error to the domain error type.
+///
+/// Authentication failures do not surface here — `russh` reports them as an
+/// `AuthResult::Failure` value which the adapter converts itself. This maps
+/// transport-level breakage.
+pub fn map_ssh_error(e: SshError) -> CoreError {
+    match e {
+        SshError::ConnectionTimeout | SshError::KeepaliveTimeout | SshError::InactivityTimeout => {
+            CoreError::Timeout(std::time::Duration::from_secs(15))
+        }
+        // The handshake callback rejected the host key: first contact without
+        // a pin, or a fingerprint mismatch (possible machine-in-the-middle).
+        SshError::UnknownKey => CoreError::ConnectionFailed {
+            host: "remote".into(),
+            port: 0,
+            reason: "host key rejected or not pinned".into(),
+        },
+        SshError::IO(io) => CoreError::Io(io.to_string()),
+        other => CoreError::Protocol(other.to_string()),
+    }
+}
+
+/// Map an SFTP protocol error to the domain error type.
+pub fn map_sftp_error(e: SftpError) -> CoreError {
+    match e {
+        SftpError::Status(status) => map_sftp_status(status),
+        SftpError::Timeout => CoreError::Timeout(std::time::Duration::from_secs(15)),
+        SftpError::IO(msg) => CoreError::Io(msg),
+        other => CoreError::Protocol(other.to_string()),
+    }
+}
+
+/// Map an SFTP status code to the closest domain error.
+fn map_sftp_status(status: russh_sftp::protocol::Status) -> CoreError {
+    let text = status.error_message;
+    match status.status_code {
+        StatusCode::NoSuchFile => CoreError::NotFound(text),
+        StatusCode::PermissionDenied => CoreError::Permission(text),
+        StatusCode::NoConnection | StatusCode::ConnectionLost => CoreError::Transfer(text),
         _ => CoreError::Protocol(text),
     }
 }
