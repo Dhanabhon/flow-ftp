@@ -1,6 +1,21 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { cn } from '$lib/utils';
   import { app } from '$lib/stores/app.svelte';
+  import { onEditUpdate } from '$lib/ipc';
+
+  // Remote-edit outcomes land here as toasts.
+  onMount(() => {
+    let unlisten: (() => void) | null = null;
+    onEditUpdate((event) => {
+      if (event.kind === 'synced') {
+        app.notify('success', 'Edit synced', event.fileName);
+      } else {
+        app.notify('danger', 'Edit sync failed', event.message ?? event.fileName);
+      }
+    }).then((un) => (unlisten = un));
+    return () => unlisten?.();
+  });
   import { IconCheckCircle, IconXCircle, IconAlert, IconX } from '$lib/components/icons';
 
   const icons = {

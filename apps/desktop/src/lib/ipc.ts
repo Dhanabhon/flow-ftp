@@ -312,6 +312,38 @@ export async function pickDownloadDirectory(): Promise<string | null> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Remote editing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Download a remote file to a temp location and open it in the system
+ * editor. Returns the temp path. Saves re-upload automatically. */
+export function remoteEditOpen(connectionId: string, remotePath: string): Promise<string> {
+  return mockOr(
+    () => call<string>('remote_edit_open', { connectionId, remotePath }),
+    () => '',
+  );
+}
+
+/**
+ * Subscribe to remote-edit outcomes (save synced / failed). Browser mode
+ * never fires.
+ */
+export function onEditUpdate(
+  handler: (event: { kind: 'synced' | 'failed'; fileName: string; message?: string }) => void,
+): Promise<() => void> {
+  if (!IS_TAURI) return Promise.resolve(() => {});
+  return import('@tauri-apps/api/event').then(({ listen }) =>
+    listen<{ kind: string; fileName: string; message?: string }>('edit:update', (event) =>
+      handler({
+        kind: event.payload.kind === 'synced' ? 'synced' : 'failed',
+        fileName: event.payload.fileName,
+        message: event.payload.message,
+      }),
+    ).then((unlisten) => () => unlisten()),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Smart Sync
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,7 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::bridge::{ipc_error, ConnectionRegistry, IpcError};
+use crate::edit::EditSessions;
 use crate::transfers::CredentialCache;
 
 /// Request payload for `remote_connect`. The frontend generates the id
@@ -100,10 +101,12 @@ pub async fn remote_connect(
 pub async fn remote_disconnect(
     registry: State<'_, ConnectionRegistry>,
     cache: State<'_, CredentialCache>,
+    edits: State<'_, EditSessions>,
     connection_id: String,
 ) -> Result<(), IpcError> {
     let id = ConnectionId::new(connection_id);
     cache.remove(&id);
+    edits.remove_connection(&id);
     registry.disconnect(&id).await.map_err(ipc_error)
 }
 

@@ -7,7 +7,8 @@
     listRemote,
     localHome,
     pickDownloadDirectory,
-    pickFilesToUpload
+    pickFilesToUpload,
+    remoteEditOpen
   } from '$lib/ipc';
   import Header from '$lib/components/shell/Header.svelte';
   import Sidebar from '$lib/components/shell/Sidebar.svelte';
@@ -130,6 +131,15 @@
     }
   }
 
+  /** Double-click a remote file → open it for remote editing. */
+  function handleEdit(name: string) {
+    if (!app.activeConnectionId) return;
+    const path = joinPath(app.remotePath, name);
+    remoteEditOpen(app.activeConnectionId, path).catch((e: Error) =>
+      app.notify('danger', 'Could not open editor', e.message)
+    );
+  }
+
   /** Download the selected remote files into a chosen directory. */
   async function handleDownload() {
     if (!app.activeConnectionId) return;
@@ -186,6 +196,7 @@
           onNavigate={navigateRemote}
           onNavigateTo={(path) => (app.remotePath = path)}
           onDownload={handleDownload}
+          onEdit={handleEdit}
           error={app.errors.remote}
         />
         <PreviewPanel />

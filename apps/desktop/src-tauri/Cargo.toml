@@ -30,6 +30,8 @@ flow-transfer = { path = "../../../crates/transfer" }
 flow-sync = { path = "../../../crates/sync" }
 # Local tree scanning for sync compare.
 walkdir = "2"
+# Remote-edit file watching.
+notify = "8"
 async-trait = { workspace = true }
 tokio = { workspace = true }
 

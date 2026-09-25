@@ -35,6 +35,7 @@
     onNavigateTo,
     onUpload,
     onDownload,
+    onEdit,
     error = null
   }: {
     side: 'local' | 'remote';
@@ -53,6 +54,8 @@
     onUpload?: () => void;
     /** Footer Download button (remote pane). */
     onDownload?: () => void;
+    /** Double-click a remote file → open it for editing. */
+    onEdit?: (name: string) => void;
     /** Pane-level error surfaced by the data layer, null when healthy. */
     error?: string | null;
   } = $props();
@@ -207,8 +210,15 @@
         onclick={(e) => onSelect(f.name, e.metaKey || e.ctrlKey || e.shiftKey)}
         ondblclick={() => {
           if (f.kind === 'directory') onNavigate?.(f.name);
+          else if (!isLocal) onEdit?.(f.name);
         }}
-        title={f.kind === 'directory' ? 'Double-click to open' : undefined}
+        title={
+          f.kind === 'directory'
+            ? 'Double-click to open'
+            : isLocal
+              ? undefined
+              : 'Double-click to edit'
+        }
       >
         <Icon size={15} class={cn('shrink-0', iconColor(f))} />
         <span class={cn('flex-1 truncate', f.kind === 'directory' && 'font-medium')}>

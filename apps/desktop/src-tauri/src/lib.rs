@@ -1,4 +1,5 @@
 mod bridge;
+mod edit;
 mod ipc;
 mod sync;
 mod transfers;
@@ -14,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(ConnectionRegistry::default())
         .manage(CredentialCache::default())
+        .manage(edit::EditSessions::default())
         .invoke_handler(tauri::generate_handler![
             ipc::remote_connect,
             ipc::remote_disconnect,
@@ -32,6 +34,7 @@ pub fn run() {
             transfers::transfer_clear_finished,
             sync::sync_preview,
             sync::sync_execute,
+            edit::remote_edit_open,
         ])
         .setup(|app| {
             // Transfer engine: event forwarding + worker pool.
