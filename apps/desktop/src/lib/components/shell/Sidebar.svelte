@@ -19,6 +19,8 @@
     IconShield
   } from '$lib/components/icons';
   import Badge from '$lib/components/ui/badge.svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
+  import Button from '$lib/components/ui/button.svelte';
 
   // Honest nav: only destinations that exist. Sync opens the planner modal;
   // History/Settings return when they have content.
@@ -92,7 +94,17 @@
     }
   }
 
-  async function deleteProfile(conn: Connection) {
+  /** Pending profile deletion awaiting confirmation (zero-fear rule). */
+  let deletePending = $state<Connection | null>(null);
+
+  function requestDeleteProfile(conn: Connection) {
+    deletePending = conn;
+  }
+
+  async function confirmDeleteProfile() {
+    const conn = deletePending;
+    deletePending = null;
+    if (!conn) return;
     try {
       app.connections = await profileDelete(conn.id);
       if (app.activeConnectionId === conn.id) app.activeConnectionId = null;
@@ -183,7 +195,7 @@
             class="rounded p-0.5 text-fg-subtle hover:text-danger"
             aria-label="Delete connection {conn.name}"
             title="Delete connection"
-            onclick={(e) => { e.stopPropagation(); deleteProfile(conn); }}
+            onclick={(e) => { e.stopPropagation(); requestDeleteProfile(conn); }}
           >
             <IconTrash size={12} />
           </button>
@@ -232,3 +244,18 @@
     </div>
   </div>
 </aside>
+
+<Modal
+  open={deletePending !== null}
+  title="Delete {deletePending?.name ?? 'connection'}?"
+  description="Removes the saved connection. A stored keychain password for it is kept until you delete it there."
+  width="sm"
+>
+  <p class="text-sm text-fg-muted">
+    {deletePending?.protocol.toUpperCase()} · {deletePending?.username}@{deletePending?.host}:{deletePending?.port}
+  </p>
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (deletePending = null)}>Cancel</Button>
+    <Button variant="danger" onclick={confirmDeleteProfile}>Delete</Button>
+  {/snippet}
+</Modal>

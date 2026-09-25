@@ -262,9 +262,10 @@
               <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Pause"
                 aria-label="Pause {t.fileName}"
                 onclick={() => onRowPause(t.id)}><IconPause size={12} /></button>
-            {:else if t.status === 'paused'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Resume"
-                aria-label="Resume {t.fileName}"
+            {:else if t.status === 'paused' || t.status === 'failed'}
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg"
+                title={t.status === 'failed' ? 'Retry' : 'Resume'}
+                aria-label="{t.status === 'failed' ? 'Retry' : 'Resume'} {t.fileName}"
                 onclick={() => onRowResume(t.id)}><IconPlay size={12} /></button>
             {/if}
             {#if t.status !== 'completed' && t.status !== 'canceled'}

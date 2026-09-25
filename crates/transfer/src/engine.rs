@@ -241,7 +241,8 @@ impl TransferEngine {
         Ok(())
     }
 
-    /// Resume a paused transfer from its byte offset.
+    /// Resume a paused transfer, or retry a failed one, from the byte offset
+    /// the filesystems report.
     pub async fn resume(&self, id: &TransferId) -> CoreResult<()> {
         let record = {
             let mut state = self.inner.state.lock().await;
@@ -249,11 +250,12 @@ impl TransferEngine {
             let job = jobs
                 .get_mut(id)
                 .ok_or_else(|| CoreError::NotFound(format!("transfer {id}")))?;
-            if job.status != TransferStatus::Paused {
+            if !matches!(job.status, TransferStatus::Paused | TransferStatus::Failed) {
                 return Ok(());
             }
             job.status = TransferStatus::Queued;
             job.error = None;
+            job.attempts = 0; // a manual retry gets a fresh retry budget
             pending.push_back(id.clone());
             Some(job.record())
         };

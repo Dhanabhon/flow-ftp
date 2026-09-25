@@ -35,6 +35,9 @@
     } else if (mod && e.key === '2') {
       e.preventDefault();
       app.setView('transfers');
+    } else if (mod && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      app.quickConnectOpen = true;
     } else if (mod && e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
       app.syncOpen = true;
@@ -137,7 +140,24 @@
 
   const basename = (path: string) => path.split('/').pop() ?? path;
 
-  /** Upload the selected local files (or picked ones) to the remote path. */
+  /** Uploads queued behind an overwrite confirmation: file -> remote path. */
+  let overwriteConfirm = $state<{ uploads: { localPath: string; fileName: string }[] } | null>(null);
+
+  function enqueueUploads(uploads: { localPath: string; fileName: string }[]) {
+    if (!app.activeConnectionId) return;
+    for (const upload of uploads) {
+      enqueueTransfer({
+        id: crypto.randomUUID(),
+        connectionId: app.activeConnectionId,
+        direction: 'upload',
+        remotePath: joinPath(app.remotePath, upload.fileName),
+        localPath: upload.localPath,
+        fileName: upload.fileName
+      }).catch((e: Error) => app.notify('danger', 'Upload failed to start', e.message));
+    }
+  }
+
+  /** Upload the selected local files (or picked ones), confirming overwrites. */
   async function handleUpload() {
     if (!app.activeConnectionId) return;
     const selected = [...app.localSelected].filter((n) => n !== '..');
@@ -145,16 +165,15 @@
       selected.length > 0
         ? selected.map((name) => joinPath(app.localPath, name))
         : await pickFilesToUpload();
-    for (const file of files) {
-      const fileName = basename(file);
-      await enqueueTransfer({
-        id: crypto.randomUUID(),
-        connectionId: app.activeConnectionId,
-        direction: 'upload',
-        remotePath: joinPath(app.remotePath, fileName),
-        localPath: file,
-        fileName
-      });
+    if (files.length === 0) return;
+    const uploads = files.map((file) => ({ localPath: file, fileName: basename(file) }));
+    const remoteNames = new Set(app.remoteFiles.map((f) => f.name));
+    const overwrites = uploads.filter((u) => remoteNames.has(u.fileName));
+    if (overwrites.length > 0) {
+      // Preview -> Confirm -> Execute (DESIGN.md): name what gets replaced.
+      overwriteConfirm = { uploads };
+    } else {
+      enqueueUploads(uploads);
     }
   }
 
@@ -315,7 +334,9 @@
   open={deleteConfirm !== null}
   title="Delete {deleteConfirm?.names.length ?? 0}
     item{deleteConfirm?.names.length === 1 ? '' : 's'}?"
-  description="This cannot be undone."
+  description={deleteConfirm
+    ? `${deleteConfirm.side === 'remote' ? `${app.activeConnection?.name ?? ''} · ` : ''}${deleteConfirm.side === 'remote' ? app.remotePath : app.localPath} — this cannot be undone.`
+    : 'This cannot be undone.'}
   width="sm"
 >
   <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-bg-panel p-2.5">
@@ -326,5 +347,24 @@
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (deleteConfirm = null)}>Cancel</Button>
     <Button variant="danger" onclick={confirmDelete}>Delete</Button>
+  {/snippet}
+</Modal>
+
+<!-- Overwrite confirmation for uploads: Preview -> Confirm -> Execute -->
+<Modal
+  open={overwriteConfirm !== null}
+  title="Replace {overwriteConfirm?.uploads.length ?? 0}
+    file{overwriteConfirm?.uploads.length === 1 ? '' : 's'} on {app.activeConnection?.name ?? 'the server'}?"
+  description="These files already exist in {app.remotePath}. Uploading replaces the remote copies — the local files are not changed."
+  width="sm"
+>
+  <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-bg-panel p-2.5">
+    {#each overwriteConfirm?.uploads ?? [] as upload (upload.localPath)}
+      <div class="truncate font-mono text-xs text-fg">{upload.fileName}</div>
+    {/each}
+  </div>
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (overwriteConfirm = null)}>Cancel</Button>
+    <Button variant="danger" onclick={() => { const u = overwriteConfirm; overwriteConfirm = null; if (u) enqueueUploads(u.uploads); }}>Replace</Button>
   {/snippet}
 </Modal>
