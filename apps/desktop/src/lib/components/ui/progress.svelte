@@ -24,7 +24,11 @@
 
 <div class={cn('h-1.5 w-full overflow-hidden rounded-full bg-bg-hover', className)}>
   <div
-    class={cn('h-full rounded-full transition-[width] duration-300 ease-out', barTone[tone])}
-    style="width: {pct}%"
+    class={cn('h-full w-full origin-left rounded-full transition-transform duration-300 ease-out', barTone[tone])}
+    style="transform: scaleX({pct / 100})"
+    role="progressbar"
+    aria-valuenow={Math.round(pct)}
+    aria-valuemin="0"
+    aria-valuemax="100"
   ></div>
 </div>

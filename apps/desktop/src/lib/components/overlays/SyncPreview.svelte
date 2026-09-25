@@ -133,7 +133,7 @@
     <IconHardDrive size={14} class="text-fg-muted" />
     <span class="truncate font-mono text-fg">{app.localPath}</span>
     <IconArrowRight size={13} class="shrink-0 text-fg-faint" />
-    <IconCloud size={14} class="shrink-0 text-accent" />
+    <IconCloud size={14} class="shrink-0 text-accent-text" />
     <span class="truncate font-mono text-fg">{app.remotePath}</span>
   </div>
 
@@ -142,7 +142,7 @@
     <div class="rounded-lg border border-border bg-bg-panel p-2.5">
       <div class="text-[10px] uppercase tracking-wider text-fg-subtle">Uploads</div>
       <div class="mt-0.5 flex items-baseline gap-1">
-        <span class="text-lg font-semibold text-accent">{totals.uploads.length}</span>
+        <span class="text-lg font-semibold text-accent-text">{totals.uploads.length}</span>
       </div>
     </div>
     <div class="rounded-lg border border-border bg-bg-panel p-2.5">
@@ -185,7 +185,7 @@
         {@const rm = reasonMeta(d.reason)}
         {@const Icon = d.direction === 'upload' ? IconUpload : IconDownload}
         <div class="flex items-center gap-3 border-b border-border px-3 py-2 text-sm last:border-0" class:opacity-60={d.reason === 'conflict' && !resolutions.has(d.path)}>
-          <Icon size={13} class={cn(d.direction === 'upload' ? 'text-accent' : 'text-success')} />
+          <Icon size={13} class={cn(d.direction === 'upload' ? 'text-accent-text' : 'text-success')} />
           <span class="flex-1 truncate font-mono text-xs text-fg">{d.path}</span>
           {#if d.reason === 'conflict'}
             {@const choice = resolutions.get(d.path)}
@@ -194,11 +194,11 @@
             {:else}
               <div class="flex items-center gap-1">
                 <button
-                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent-text"
                   onclick={() => resolveConflict(d.path, 'local')}
                 >Use local</button>
                 <button
-                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent-text"
                   onclick={() => resolveConflict(d.path, 'remote')}
                 >Use remote</button>
               </div>

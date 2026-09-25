@@ -29,6 +29,11 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-muted: var(--accent-muted);
+  /* Filled-control background (dark enough for white text in dark theme);
+     text accents use --color-accent-text. */
+  --color-accent-solid: var(--accent-solid);
+  --color-accent-solid-hover: var(--accent-solid-hover);
+  --color-accent-text: var(--accent-text);
 
   --color-success: var(--success);
   --color-success-muted: var(--success-muted);
@@ -36,6 +41,7 @@
   --color-warning-muted: var(--warning-muted);
   --color-danger: var(--danger);
   --color-danger-muted: var(--danger-muted);
+  --color-danger-solid: var(--danger-solid);
   --color-info: var(--info);
   --color-info-muted: var(--info-muted);
 
@@ -80,13 +86,16 @@
 
   --fg: #111827;
   --fg-muted: #4b5563;
-  --fg-subtle: #6b7280;
-  --fg-faint: #9ca3af;
+  --fg-subtle: #5d6572; /* >= 4.5:1 on bg, bg-panel, and bg-hover */
+  --fg-faint: #9ca3af; /* decorative only — never body text */
 
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-fg: #ffffff;
   --accent-muted: #dbeafe;
+  --accent-solid: #2563eb;
+  --accent-solid-hover: #1d4ed8;
+  --accent-text: #2563eb;
 
   --success: #16a34a;
   --success-muted: #dcfce7;
@@ -94,6 +103,7 @@
   --warning-muted: #fef3c7;
   --danger: #dc2626;
   --danger-muted: #fee2e2;
+  --danger-solid: #dc2626;
   --info: #0891b2;
   --info-muted: #cffafe;
 
@@ -126,21 +136,28 @@
 
   --fg: #e7eaf0;
   --fg-muted: #9aa3b2;
-  --fg-subtle: #6b7384;
-  --fg-faint: #4b5260;
+  --fg-subtle: #8b94a9; /* >= 4.5:1 on bg-elevated */
+  --fg-faint: #5d6575; /* decorative only */
 
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
+  /* accent = text/border tint (readable on dark); solid = button fill
+     (white text passes AA). */
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
   --accent-fg: #ffffff;
   --accent-muted: #1e3a8a;
+  --accent-solid: #2563eb;
+  --accent-solid-hover: #1d4ed8;
+  --accent-text: #93c5fd;
 
-  --success: #10b981;
+  /* Status colors brightened for dark-surface badge pairs (>= 4.5:1 on their /15 tints). */
+  --success: #34d399;
   --success-muted: #064e3b;
-  --warning: #f59e0b;
+  --warning: #fbbf24;
   --warning-muted: #78350f;
-  --danger: #ef4444;
+  --danger: #f87171;
   --danger-muted: #7f1d1d;
-  --info: #06b6d4;
+  --danger-solid: #dc2626; /* filled danger buttons keep white-text AA in dark */
+  --info: #22d3ee;
   --info-muted: #164e63;
 
   --speed-fast: #22c55e;
@@ -202,7 +219,23 @@
     background: var(--color-fg-subtle);
     background-clip: padding-box;
   }
-  :focus-visible { outline: none; }
+  /* Visible keyboard focus everywhere; components may restyle but never remove. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Match system motion preferences — feedback stays, movement goes. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /* ── Reusable component classes ───────────────────────────────────── */

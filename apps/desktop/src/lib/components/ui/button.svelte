@@ -1,17 +1,17 @@
 <script lang="ts" module>
   import { tv } from 'tailwind-variants';
   export const buttonVariants = tv({
-    base: 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:pointer-events-none disabled:opacity-40 select-none',
+    base: 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-40 select-none',
     variants: {
       variant: {
-        default: 'bg-accent text-accent-fg hover:bg-accent-hover shadow-sm',
+        default: 'bg-accent-solid text-accent-fg hover:bg-accent-solid-hover shadow-sm',
         secondary:
           'bg-bg-panel text-fg hover:bg-bg-hover border border-border',
         ghost: 'text-fg-muted hover:text-fg hover:bg-bg-hover',
         outline:
           'border border-border text-fg hover:bg-bg-hover hover:border-border-strong',
         danger:
-          'bg-danger text-white hover:brightness-110 shadow-sm',
+          'bg-danger-solid text-white hover:brightness-110 shadow-sm',
         subtle: 'bg-bg-hover text-fg hover:bg-bg-active'
       },
       size: {

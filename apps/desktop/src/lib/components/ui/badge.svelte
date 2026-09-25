@@ -1,11 +1,11 @@
 <script lang="ts" module>
   import { tv } from 'tailwind-variants';
   export const badgeVariants = tv({
-    base: 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+    base: 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider transition-colors',
     variants: {
       variant: {
         neutral: 'bg-bg-hover text-fg-muted',
-        accent: 'bg-accent/15 text-accent',
+        accent: 'bg-accent/15 text-accent-text',
         success: 'bg-success/15 text-success',
         warning: 'bg-warning/15 text-warning',
         danger: 'bg-danger/15 text-danger',

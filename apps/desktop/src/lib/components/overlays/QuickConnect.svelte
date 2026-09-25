@@ -177,7 +177,7 @@
 
   <!-- Connection error, with suggested fix per the UX error rules -->
   {#if errorMessage}
-    <div class="mt-3 flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-2.5">
+    <div role="alert" class="mt-3 flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-2.5">
       <IconAlert size={14} class="mt-0.5 shrink-0 text-danger" />
       <span class="text-xs text-danger">{errorMessage}</span>
     </div>

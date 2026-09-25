@@ -110,7 +110,7 @@
       <!-- Location -->
       <div class="mt-4 flex items-center gap-2 rounded-lg border border-border bg-bg-panel p-3 text-xs">
         {#if isRemote}
-          <IconCloud size={13} class="shrink-0 text-accent" />
+          <IconCloud size={13} class="shrink-0 text-accent-text" />
           <span class="truncate font-mono text-fg-subtle">{app.remotePath}</span>
         {:else}
           <IconHardDrive size={13} class="shrink-0 text-fg-muted" />

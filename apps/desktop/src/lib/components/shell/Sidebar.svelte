@@ -132,10 +132,10 @@
           }
         }}
       >
-        <item.icon size={16} class={cn(active && 'text-accent')} />
+        <item.icon size={16} class={cn(active && 'text-accent-text')} />
         <span class="flex-1 text-left">{item.label}</span>
         {#if item.id === 'transfers' && app.activeTransfers.length > 0}
-          <span class="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+          <span class="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">
             {app.activeTransfers.length}
           </span>
         {:else if item.id === 'transfers' && app.failedCount > 0}
@@ -173,6 +173,7 @@
         <span class="hidden items-center gap-0.5 group-hover:flex">
           <button
             class="rounded p-0.5 text-fg-subtle hover:text-warning"
+            aria-label="Remove {conn.name} from favorites"
             title="Remove from favorites"
             onclick={(e) => { e.stopPropagation(); toggleFavorite(conn); }}
           >
@@ -180,6 +181,7 @@
           </button>
           <button
             class="rounded p-0.5 text-fg-subtle hover:text-danger"
+            aria-label="Delete connection {conn.name}"
             title="Delete connection"
             onclick={(e) => { e.stopPropagation(); deleteProfile(conn); }}
           >

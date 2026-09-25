@@ -174,6 +174,7 @@
       <button
         class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"
         title="Clear finished transfers"
+        aria-label="Clear finished transfers"
         onclick={() => clearFinishedTransfers().catch(() => {})}
       >
         <IconTrash size={13} />
@@ -184,7 +185,7 @@
   {#if !app.queueCollapsed}
     <div class={expanded ? 'min-h-0 flex-1 overflow-y-auto border-t border-border' : 'max-h-56 overflow-y-auto border-t border-border'}>
       <!-- Column header -->
-      <div class="flex h-6 items-center gap-3 px-3 text-[10px] font-semibold uppercase tracking-wider text-fg-faint">
+      <div class="flex h-6 items-center gap-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
         <span class="w-4"></span>
         <span class="w-64">Name</span>
         <span class="flex-1">Progress</span>
@@ -203,14 +204,14 @@
           class:opacity-60={t.status === 'completed'}
         >
           <!-- direction icon -->
-          <div class={cn('grid w-4 place-items-center', t.direction === 'upload' ? 'text-accent' : 'text-success')}>
+          <div class={cn('grid w-4 place-items-center', t.direction === 'upload' ? 'text-accent-text' : 'text-success')}>
             <Icon size={13} />
           </div>
 
           <!-- name -->
           <div class="w-64 min-w-0">
             <div class="truncate font-medium text-fg">{t.fileName}</div>
-            <div class="truncate text-[10px] text-fg-subtle">
+            <div class="truncate text-[11px] text-fg-subtle">
               {t.connectionName} · {t.remotePath}
             </div>
           </div>
@@ -244,7 +245,7 @@
             <StatusIcon
               size={12}
               class={cn(
-                meta.tone === 'accent' && 'text-accent',
+                meta.tone === 'accent' && 'text-accent-text',
                 meta.tone === 'success' && 'text-success',
                 meta.tone === 'danger' && 'text-danger',
                 meta.tone === 'warning' && 'text-warning',
@@ -252,18 +253,24 @@
                 meta.spin && 'animate-spin'
               )}
             />
-            <span class="text-[10px] text-fg-subtle">{meta.label}</span>
+            <span class="text-[11px] text-fg-subtle">{meta.label}</span>
           </div>
 
           <!-- row actions -->
           <div class="flex w-16 items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
             {#if t.status === 'active'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Pause" onclick={() => onRowPause(t.id)}><IconPause size={12} /></button>
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Pause"
+                aria-label="Pause {t.fileName}"
+                onclick={() => onRowPause(t.id)}><IconPause size={12} /></button>
             {:else if t.status === 'paused'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Resume" onclick={() => onRowResume(t.id)}><IconPlay size={12} /></button>
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-fg" title="Resume"
+                aria-label="Resume {t.fileName}"
+                onclick={() => onRowResume(t.id)}><IconPlay size={12} /></button>
             {/if}
             {#if t.status !== 'completed' && t.status !== 'canceled'}
-              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-danger" title="Cancel" onclick={() => onRowCancel(t.id)}><IconStop size={12} /></button>
+              <button class="rounded p-1 text-fg-subtle hover:bg-bg-active hover:text-danger" title="Cancel"
+                aria-label="Cancel {t.fileName}"
+                onclick={() => onRowCancel(t.id)}><IconStop size={12} /></button>
             {/if}
           </div>
         </div>

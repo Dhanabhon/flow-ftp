@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { app } from '$lib/stores/app.svelte';
+  import { focusTrap } from '$lib/actions/focus-trap';
+import { app } from '$lib/stores/app.svelte';
 import { theme } from '$lib/stores/theme.svelte';
   import { mockCommands, type Command } from '$lib/mock';
   import { cn } from '$lib/utils';
@@ -112,6 +113,8 @@ import { theme } from '$lib/stores/theme.svelte';
       class="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-bg-elevated shadow-lg animate-[scale-in_0.14s_cubic-bezier(0.16,1,0.3,1)]"
       role="dialog"
       aria-modal="true"
+      aria-label="Command palette"
+      use:focusTrap
     >
       <!-- Search input -->
       <div class="flex items-center gap-3 border-b border-border px-4">
@@ -145,7 +148,7 @@ import { theme } from '$lib/stores/theme.svelte';
               onmouseenter={() => (activeIndex = flatIdx)}
             >
               {#if Icon}
-                <Icon size={15} class={cn(flatIdx === activeIndex ? 'text-accent' : 'text-fg-subtle')} />
+                <Icon size={15} class={cn(flatIdx === activeIndex ? 'text-accent-text' : 'text-fg-subtle')} />
               {:else}
                 <span class="w-[15px]"></span>
               {/if}

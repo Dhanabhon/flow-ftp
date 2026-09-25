@@ -156,7 +156,7 @@
   }
 
   function iconColor(f: RemoteFile) {
-    if (f.kind === 'directory') return 'text-accent';
+    if (f.kind === 'directory') return 'text-accent-text';
     const ext = f.name.split('.').pop()?.toLowerCase();
     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext || '')) return 'text-info';
     if (['zip', 'tar', 'gz', 'rar', '7z'].includes(ext || '')) return 'text-warning';
@@ -178,7 +178,7 @@
 >
   <!-- Pane header -->
   <div class="flex h-10 items-center gap-1 border-b border-border px-2.5">
-    <div class={cn('grid h-5 w-5 place-items-center rounded', isLocal ? 'text-fg-muted' : 'text-accent')}>
+    <div class={cn('grid h-5 w-5 place-items-center rounded', isLocal ? 'text-fg-muted' : 'text-accent-text')}>
       {#if isLocal}
         <IconHardDrive size={14} />
       {:else}
@@ -192,12 +192,12 @@
 
     <div class="ml-auto flex items-center gap-0.5">
       <Tooltip label="Up">
-        <Button variant="ghost" size="icon-sm" onclick={() => onNavigate?.('..')}>
+        <Button variant="ghost" size="icon-sm" aria-label="Go to parent folder" onclick={() => onNavigate?.('..')}>
           <IconHome size={14} />
         </Button>
       </Tooltip>
       <Tooltip label="Refresh">
-        <Button variant="ghost" size="icon-sm" onclick={onRefresh}>
+        <Button variant="ghost" size="icon-sm" aria-label="Refresh" onclick={onRefresh}>
           <IconRefresh size={14} />
         </Button>
       </Tooltip>
@@ -205,6 +205,7 @@
         <Button
           variant="ghost"
           size="icon-sm"
+          aria-label="New folder"
           onclick={() => { creatingFolder = true; newFolderName = ''; }}
         >
           <IconFolderPlus size={14} />
@@ -214,6 +215,7 @@
         <Button
           variant="ghost"
           size="icon-sm"
+          aria-label="Rename selected"
           disabled={selectedNames.length !== 1}
           onclick={() => selectedNames[0] && startRename(selectedNames[0])}
         >
@@ -224,6 +226,7 @@
         <Button
           variant="ghost"
           size="icon-sm"
+          aria-label="Delete selected"
           disabled={selectedNames.length === 0}
           onclick={deleteSelection}
         >
@@ -255,7 +258,7 @@
   </div>
 
   <!-- Column headers -->
-  <div class="flex h-7 items-center gap-2 border-b border-border px-3 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
+  <div class="flex h-7 items-center gap-2 border-b border-border px-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
     <button
       class="flex flex-1 items-center gap-1 hover:text-fg"
       onclick={() => toggleSort('name')}
@@ -284,7 +287,7 @@
   <div class="min-h-0 flex-1 overflow-y-auto py-0.5">
     {#if creatingFolder}
       <div class="flex w-full items-center gap-2 bg-bg-active px-3 py-1">
-        <IconFolder size={15} class="shrink-0 text-accent" />
+        <IconFolder size={15} class="shrink-0 text-accent-text" />
         <!-- svelte-ignore a11y_autofocus -->
         <input
           class="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
@@ -344,7 +347,7 @@
         <span class="w-28 shrink-0 text-right text-xs text-fg-subtle">
           {f.modified ? formatDate(f.modified) : '—'}
         </span>
-        <span class="w-16 shrink-0 text-right font-mono text-[10px] text-fg-faint">
+        <span class="w-16 shrink-0 text-right font-mono text-[11px] text-fg-subtle">
           {f.permissions ?? '—'}
         </span>
       </button>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
+  import { focusTrap } from '$lib/actions/focus-trap';
   import { fade, scale } from 'svelte/transition';
   import type { Snippet } from 'svelte';
 
@@ -57,6 +58,7 @@
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      use:focusTrap
     >
       {#if title}
         <div class="border-b border-border px-5 py-4">
