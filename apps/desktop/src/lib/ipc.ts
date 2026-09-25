@@ -207,6 +207,30 @@ export function listLocal(path: string): Promise<RemoteFile[]> {
   );
 }
 
+/** Create a local directory (parents included). */
+export function localMkdir(path: string): Promise<void> {
+  return mockOr(
+    () => call<void>('local_mkdir', { path }),
+    () => undefined,
+  );
+}
+
+/** Rename/move a local path. */
+export function localRename(from: string, to: string): Promise<void> {
+  return mockOr(
+    () => call<void>('local_rename', { from, to }),
+    () => undefined,
+  );
+}
+
+/** Delete a local file or empty directory. */
+export function localDelete(path: string): Promise<void> {
+  return mockOr(
+    () => call<void>('local_delete', { path }),
+    () => undefined,
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Transfer queue
 // ─────────────────────────────────────────────────────────────────────────────
@@ -275,6 +299,14 @@ export function cancelTransfer(id: string): Promise<void> {
 export function clearFinishedTransfers(): Promise<void> {
   return mockOr(
     () => call<void>('transfer_clear_finished'),
+    () => undefined,
+  );
+}
+
+/** Set the engine's bandwidth budget in bytes/sec; 0 = unlimited. */
+export function setRateLimit(bytesPerSec: number): Promise<void> {
+  return mockOr(
+    () => call<void>('transfer_set_rate_limit', { bytesPerSec }),
     () => undefined,
   );
 }

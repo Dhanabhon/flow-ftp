@@ -274,3 +274,54 @@ fn with_parent_entry(files: Vec<RemoteFile>, dir: &FilePath) -> Vec<RemoteFile> 
 fn display_path(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
+
+/// Map a local filesystem error to the IPC error shape, with kind-aware codes.
+fn local_io_error(path: &str, e: std::io::Error) -> IpcError {
+    let code = match e.kind() {
+        std::io::ErrorKind::NotFound => "not-found",
+        std::io::ErrorKind::PermissionDenied => "permission",
+        std::io::ErrorKind::AlreadyExists => "protocol",
+        _ => "io",
+    };
+    IpcError {
+        code: code.into(),
+        message: format!("{}: {}", display_path(path), e),
+    }
+}
+
+/// Create a local directory.
+#[tauri::command]
+pub async fn local_mkdir(path: String) -> Result<(), IpcError> {
+    tokio::fs::create_dir_all(&path)
+        .await
+        .map_err(|e| local_io_error(&path, e))
+}
+
+/// Rename/move a local path.
+#[tauri::command]
+pub async fn local_rename(from: String, to: String) -> Result<(), IpcError> {
+    tokio::fs::rename(&from, &to)
+        .await
+        .map_err(|e| local_io_error(&from, e))
+}
+
+/// Delete a local file or empty directory.
+#[tauri::command]
+pub async fn local_delete(path: String) -> Result<(), IpcError> {
+    let meta = tokio::fs::metadata(&path).await;
+    match meta {
+        Ok(m) if m.is_dir() => tokio::fs::remove_dir(&path).await,
+        _ => tokio::fs::remove_file(&path).await,
+    }
+    .map_err(|e| local_io_error(&path, e))
+}
+
+/// Set the transfer engine's bandwidth budget in bytes/sec (0 = unlimited).
+#[tauri::command]
+pub fn transfer_set_rate_limit(
+    engine: tauri::State<'_, std::sync::Arc<flow_transfer::TransferEngine>>,
+    bytes_per_sec: u64,
+) -> Result<(), IpcError> {
+    engine.set_rate_limit(bytes_per_sec);
+    Ok(())
+}

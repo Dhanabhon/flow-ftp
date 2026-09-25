@@ -64,6 +64,8 @@ class AppState {
 
   // ── Transfers ───────────────────────────────────────────────
   transfers = $state<Transfer[]>(mockTransfers);
+  /** Bumped after create/rename/delete so listing effects refetch. */
+  refreshTick = $state(0);
   queueCollapsed = $state(false);
 
   get activeTransfers() {

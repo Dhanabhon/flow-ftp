@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
   import {
+    deleteRemote,
     enqueueTransfer,
     IS_TAURI,
     listLocal,
@@ -10,6 +11,10 @@
     pickFilesToUpload,
     remoteEditOpen
   } from '$lib/ipc';
+  import { localDelete, localMkdir, localRename, mkdirRemote, renameRemote } from '$lib/ipc';
+  import Modal from '$lib/components/ui/modal.svelte';
+  import Button from '$lib/components/ui/button.svelte';
+  import { IconAlert } from '$lib/components/icons';
   import Header from '$lib/components/shell/Header.svelte';
   import Sidebar from '$lib/components/shell/Sidebar.svelte';
   import FilePane from '$lib/components/shell/FilePane.svelte';
@@ -45,10 +50,11 @@
       .catch(() => {});
   }
 
-  // Local listing follows the local path.
+  // Local listing follows the local path (and refreshes after mutations).
   $effect(() => {
     if (!IS_TAURI) return;
     const path = app.localPath;
+    void app.refreshTick;
     listLocal(path)
       .then((files) => {
         app.localFiles = files;
@@ -62,6 +68,7 @@
     if (!IS_TAURI) return;
     const connectionId = app.activeConnectionId;
     const path = app.remotePath;
+    void app.refreshTick;
     if (!connectionId) {
       app.remoteFiles = [];
       return;
@@ -131,6 +138,62 @@
     }
   }
 
+  // ── File management (create / rename / delete) ───────────────────────────
+
+  /** Pending deletion awaiting confirmation: { side, names }. */
+  let deleteConfirm = $state<{ side: 'local' | 'remote'; names: string[] } | null>(null);
+
+  function handleCreateFolder(side: 'local' | 'remote', name: string) {
+    if (side === 'local') {
+      localMkdir(joinPath(app.localPath, name))
+        .then(() => app.refreshTick++)
+        .catch((e: Error) => app.notify('danger', 'Could not create folder', e.message));
+    } else if (app.activeConnectionId) {
+      mkdirRemote(app.activeConnectionId, joinPath(app.remotePath, name))
+        .then(() => app.refreshTick++)
+        .catch((e: Error) => app.notify('danger', 'Could not create folder', e.message));
+    }
+  }
+
+  function handleRename(side: 'local' | 'remote', from: string, to: string) {
+    if (side === 'local') {
+      localRename(joinPath(app.localPath, from), joinPath(app.localPath, to))
+        .then(() => app.refreshTick++)
+        .catch((e: Error) => app.notify('danger', 'Could not rename', e.message));
+    } else if (app.activeConnectionId) {
+      renameRemote(app.activeConnectionId, joinPath(app.remotePath, from), joinPath(app.remotePath, to))
+        .then(() => app.refreshTick++)
+        .catch((e: Error) => app.notify('danger', 'Could not rename', e.message));
+    }
+  }
+
+  function handleDelete(side: 'local' | 'remote', names: string[]) {
+    deleteConfirm = { side, names };
+  }
+
+  async function confirmDelete() {
+    const pending = deleteConfirm;
+    if (!pending) return;
+    deleteConfirm = null;
+    const base = pending.side === 'local' ? app.localPath : app.remotePath;
+    const remove = (name: string): Promise<void> =>
+      pending.side === 'local'
+        ? localDelete(joinPath(base, name))
+        : app.activeConnectionId
+          ? deleteRemote(app.activeConnectionId, joinPath(base, name))
+          : Promise.reject(new Error('No active connection'));
+    const results = await Promise.allSettled(pending.names.map(remove));
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      app.notify(
+        'danger',
+        `Could not delete ${failures.length} item${failures.length === 1 ? '' : 's'}`,
+        String((failures[0] as PromiseRejectedResult).reason)
+      );
+    }
+    app.refreshTick++;
+  }
+
   /** Double-click a remote file → open it for remote editing. */
   function handleEdit(name: string) {
     if (!app.activeConnectionId) return;
@@ -182,6 +245,9 @@
           onNavigate={navigateLocal}
           onNavigateTo={(path) => (app.localPath = path)}
           onUpload={handleUpload}
+          onCreateFolder={(name) => handleCreateFolder('local', name)}
+          onRename={(from, to) => handleRename('local', from, to)}
+          onDelete={(names) => handleDelete('local', names)}
           error={app.errors.local}
         />
         <FilePane
@@ -197,6 +263,9 @@
           onNavigateTo={(path) => (app.remotePath = path)}
           onDownload={handleDownload}
           onEdit={handleEdit}
+          onCreateFolder={(name) => handleCreateFolder('remote', name)}
+          onRename={(from, to) => handleRename('remote', from, to)}
+          onDelete={(names) => handleDelete('remote', names)}
           error={app.errors.remote}
         />
         <PreviewPanel />
@@ -212,3 +281,22 @@
 <QuickConnect />
 <SyncPreview />
 <ToastHost />
+
+<!-- Delete confirmation: Preview → Confirm → Execute (DESIGN.md) -->
+<Modal
+  open={deleteConfirm !== null}
+  title="Delete {deleteConfirm?.names.length ?? 0}
+    item{deleteConfirm?.names.length === 1 ? '' : 's'}?"
+  description="This cannot be undone."
+  width="sm"
+>
+  <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-bg-panel p-2.5">
+    {#each deleteConfirm?.names ?? [] as name (name)}
+      <div class="truncate font-mono text-xs text-fg">{name}</div>
+    {/each}
+  </div>
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (deleteConfirm = null)}>Cancel</Button>
+    <Button variant="danger" onclick={confirmDelete}>Delete</Button>
+  {/snippet}
+</Modal>

@@ -14,6 +14,10 @@
     IconArrowLeft,
     IconRefresh,
     IconMoreHorizontal,
+    IconPlus,
+    IconPencil,
+    IconFolderPlus,
+    IconTrash,
     IconUpload,
     IconDownload,
     IconList,
@@ -36,6 +40,9 @@
     onUpload,
     onDownload,
     onEdit,
+    onCreateFolder,
+    onRename,
+    onDelete,
     error = null
   }: {
     side: 'local' | 'remote';
@@ -56,9 +63,50 @@
     onDownload?: () => void;
     /** Double-click a remote file → open it for editing. */
     onEdit?: (name: string) => void;
+    /** Create a directory in this pane. */
+    onCreateFolder?: (name: string) => void;
+    /** Rename an entry in this pane. */
+    onRename?: (from: string, to: string) => void;
+    /** Delete the given entries in this pane. */
+    onDelete?: (names: string[]) => void;
     /** Pane-level error surfaced by the data layer, null when healthy. */
     error?: string | null;
   } = $props();
+
+  // ── Inline file management state ──────────────────────────────────────────
+  /** Name being renamed in place (row shows an input). */
+  let renaming = $state<string | null>(null);
+  let renameValue = $state('');
+  /** A new-folder input row is showing at the top of the list. */
+  let creatingFolder = $state(false);
+  let newFolderName = $state('');
+
+  function startRename(name: string) {
+    renaming = name;
+    renameValue = name;
+  }
+
+  function commitRename() {
+    if (renaming && onRename && renameValue.trim() && renameValue !== renaming) {
+      onRename(renaming, renameValue.trim());
+    }
+    renaming = null;
+  }
+
+  function commitNewFolder() {
+    if (creatingFolder && onCreateFolder && newFolderName.trim()) {
+      onCreateFolder(newFolderName.trim());
+    }
+    creatingFolder = false;
+    newFolderName = '';
+  }
+
+  function deleteSelection() {
+    const names = [...selected].filter((n) => n !== '..');
+    if (names.length > 0) onDelete?.(names);
+  }
+
+  const selectedNames = $derived([...selected].filter((n) => n !== '..'));
 
   const isLocal = $derived(side === 'local');
   const visibleFiles = $derived(
@@ -145,6 +193,35 @@
       <Tooltip label="Refresh">
         <Button variant="ghost" size="icon-sm"><IconRefresh size={14} /></Button>
       </Tooltip>
+      <Tooltip label="New folder">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onclick={() => { creatingFolder = true; newFolderName = ''; }}
+        >
+          <IconFolderPlus size={14} />
+        </Button>
+      </Tooltip>
+      <Tooltip label="Rename">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={selectedNames.length !== 1}
+          onclick={() => selectedNames[0] && startRename(selectedNames[0])}
+        >
+          <IconPencil size={14} />
+        </Button>
+      </Tooltip>
+      <Tooltip label="Delete">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={selectedNames.length === 0}
+          onclick={deleteSelection}
+        >
+          <IconTrash size={14} />
+        </Button>
+      </Tooltip>
       <Tooltip label="More">
         <Button variant="ghost" size="icon-sm"><IconMoreHorizontal size={14} /></Button>
       </Tooltip>
@@ -199,6 +276,23 @@
 
   <!-- File rows -->
   <div class="min-h-0 flex-1 overflow-y-auto py-0.5">
+    {#if creatingFolder}
+      <div class="flex w-full items-center gap-2 bg-bg-active px-3 py-1">
+        <IconFolder size={15} class="shrink-0 text-accent" />
+        <!-- svelte-ignore a11y_autofocus -->
+        <input
+          class="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
+          placeholder="Folder name"
+          bind:value={newFolderName}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') commitNewFolder();
+            else if (e.key === 'Escape') { creatingFolder = false; newFolderName = ''; }
+          }}
+          onblur={commitNewFolder}
+          autofocus
+        />
+      </div>
+    {/if}
     {#each sorted as f (f.name)}
       {@const isSel = selected.has(f.name)}
       {@const Icon = iconFor(f)}
@@ -221,9 +315,23 @@
         }
       >
         <Icon size={15} class={cn('shrink-0', iconColor(f))} />
-        <span class={cn('flex-1 truncate', f.kind === 'directory' && 'font-medium')}>
-          {f.name}
-        </span>
+        {#if renaming === f.name}
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            class="flex-1 rounded border border-accent bg-bg px-1.5 py-0.5 text-sm text-fg outline-none"
+            bind:value={renameValue}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              else if (e.key === 'Escape') renaming = null;
+            }}
+            onblur={commitRename}
+            autofocus
+          />
+        {:else}
+          <span class={cn('flex-1 truncate', f.kind === 'directory' && 'font-medium')}>
+            {f.name}
+          </span>
+        {/if}
         <span class="w-20 shrink-0 text-right font-mono text-xs text-fg-subtle">
           {f.kind === 'directory' ? '—' : formatBytes(f.size)}
         </span>

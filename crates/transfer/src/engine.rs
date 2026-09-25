@@ -140,7 +140,9 @@ struct EngineInner {
     events: mpsc::UnboundedSender<TransferEvent>,
     connector: Arc<dyn Connector>,
     retry: RetryPolicy,
-    rate_limit_bps: Option<u64>,
+    /// Current bandwidth budget in bytes/sec, 0 = unlimited. Read at the
+    /// start of every copy loop, so changes apply to subsequent transfers.
+    rate_limit_bps: Arc<std::sync::atomic::AtomicU64>,
     notify: Notify,
 }
 
@@ -165,10 +167,25 @@ impl TransferEngine {
                 events,
                 connector,
                 retry,
-                rate_limit_bps,
+                rate_limit_bps: Arc::new(std::sync::atomic::AtomicU64::new(
+                    rate_limit_bps.unwrap_or(0),
+                )),
                 notify: Notify::new(),
             }),
         }
+    }
+
+    /// Set the bandwidth budget in bytes/sec; `0` disables limiting.
+    /// Applies to transfers that start after the change.
+    pub fn set_rate_limit(&self, bytes_per_sec: u64) {
+        self.inner
+            .rate_limit_bps
+            .store(bytes_per_sec, Ordering::Relaxed);
+    }
+
+    /// The current bandwidth budget (0 = unlimited).
+    pub fn rate_limit(&self) -> u64 {
+        self.inner.rate_limit_bps.load(Ordering::Relaxed)
     }
 
     /// Enqueue one file transfer under the given id.
@@ -509,7 +526,8 @@ impl TransferEngine {
         let mut buf = vec![0u8; CHUNK_SIZE];
         let started = Instant::now();
         let mut estimator = SpeedEstimator::new();
-        let mut limiter = RateLimiter::new(self.inner.rate_limit_bps);
+        let budget = self.inner.rate_limit_bps.load(Ordering::Relaxed);
+        let mut limiter = RateLimiter::new((budget != 0).then_some(budget));
         let mut last_emit = Instant::now() - EMIT_INTERVAL;
         let mut transferred = start_offset;
 

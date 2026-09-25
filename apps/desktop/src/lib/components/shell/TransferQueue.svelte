@@ -8,6 +8,7 @@
     onTransferUpdate,
     pauseTransfer,
     resumeTransfer,
+    setRateLimit,
     transferList
   } from '$lib/ipc';
   import type { Transfer } from '$lib/types';
@@ -74,6 +75,20 @@
     };
   });
 
+  // Bandwidth budget choices (bytes/sec); null = unlimited.
+  const speedChoices = [
+    { label: 'No limit', value: 0 },
+    { label: '1 MB/s', value: 1_048_576 },
+    { label: '5 MB/s', value: 5_242_880 },
+    { label: '10 MB/s', value: 10_485_760 }
+  ] as const;
+  let speedLimit = $state<number>(0);
+
+  function applySpeedLimit(value: number) {
+    speedLimit = value;
+    setRateLimit(value).catch(() => {});
+  }
+
   function onRowPause(id: string) {
     pauseTransfer(id).catch(() => {});
   }
@@ -134,7 +149,19 @@
       {/if}
     </div>
 
-    <div class="ml-auto flex items-center gap-0.5">
+    <div class="ml-auto flex items-center gap-2">
+      <label class="flex items-center gap-1 text-[10px] uppercase tracking-wider text-fg-subtle">
+        Speed
+        <select
+          class="rounded border border-border bg-bg px-1.5 py-0.5 text-[11px] text-fg outline-none"
+          value={speedLimit}
+          onchange={(e) => applySpeedLimit(Number(e.currentTarget.value))}
+        >
+          {#each speedChoices as choice (choice.value)}
+            <option value={choice.value}>{choice.label}</option>
+          {/each}
+        </select>
+      </label>
       <button class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg">
         <IconPause size={13} />
       </button>

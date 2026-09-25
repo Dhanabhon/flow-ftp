@@ -26,6 +26,30 @@
 
   const hasConnection = $derived(app.activeConnectionId !== null);
 
+  /**
+   * Conflict resolutions: path → 'local' | 'remote'. A resolved conflict
+   * becomes an explicit transfer toward the chosen side, so the server-side
+   * executable filter (which skips unresolved conflicts) passes it through.
+   */
+  let resolutions = $state<Map<string, 'local' | 'remote'>>(new Map());
+  function resolveConflict(path: string, choice: 'local' | 'remote') {
+    resolutions = new Map(resolutions).set(path, choice);
+  }
+
+  const resolvedDiffs = $derived(
+    diffs.map((d) => {
+      if (d.reason !== 'conflict') return d;
+      const choice = resolutions.get(d.path);
+      if (!choice) return d;
+      // Local wins → push local up; remote wins → pull remote down.
+      return {
+        ...d,
+        direction: choice === 'local' ? ('upload' as const) : ('download' as const),
+        reason: 'newer' as const
+      };
+    })
+  );
+
   // Re-fetch the plan whenever the modal opens or the direction changes.
   $effect(() => {
     if (!app.syncOpen) return;
@@ -37,17 +61,18 @@
 
     loading = true;
     errorMessage = null;
+    resolutions = new Map();
     syncPreview({ connectionId, localDir, remoteDir, direction: dir })
       .then((plan) => (diffs = plan))
       .catch((e: Error) => (errorMessage = e.message))
       .finally(() => (loading = false));
   });
 
-  const executable = $derived(diffs.filter((d) => d.reason !== 'conflict'));
+  const executable = $derived(resolvedDiffs.filter((d) => d.reason !== 'conflict'));
   const totals = $derived({
     uploads: executable.filter((d) => d.direction === 'upload'),
     downloads: executable.filter((d) => d.direction === 'download'),
-    conflicts: diffs.filter((d) => d.reason === 'conflict'),
+    conflicts: resolvedDiffs.filter((d) => d.reason === 'conflict'),
     bytes: executable.reduce((sum, d) => sum + d.size, 0)
   });
 
@@ -70,7 +95,7 @@
         connectionId: app.activeConnectionId,
         localRoot: app.localPath,
         remoteRoot: app.remotePath,
-        diffs
+        diffs: resolvedDiffs
       });
       app.syncOpen = false;
     } catch (e) {
@@ -159,10 +184,28 @@
       {#each diffs as d (d.path)}
         {@const rm = reasonMeta(d.reason)}
         {@const Icon = d.direction === 'upload' ? IconUpload : IconDownload}
-        <div class="flex items-center gap-3 border-b border-border px-3 py-2 text-sm last:border-0" class:opacity-60={d.reason === 'conflict'}>
+        <div class="flex items-center gap-3 border-b border-border px-3 py-2 text-sm last:border-0" class:opacity-60={d.reason === 'conflict' && !resolutions.has(d.path)}>
           <Icon size={13} class={cn(d.direction === 'upload' ? 'text-accent' : 'text-success')} />
           <span class="flex-1 truncate font-mono text-xs text-fg">{d.path}</span>
-          <Badge variant={rm.tone}>{rm.label}</Badge>
+          {#if d.reason === 'conflict'}
+            {@const choice = resolutions.get(d.path)}
+            {#if choice}
+              <Badge variant="info">{choice === 'local' ? 'Use local' : 'Use remote'}</Badge>
+            {:else}
+              <div class="flex items-center gap-1">
+                <button
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
+                  onclick={() => resolveConflict(d.path, 'local')}
+                >Use local</button>
+                <button
+                  class="rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-fg-muted transition-colors hover:border-accent hover:text-accent"
+                  onclick={() => resolveConflict(d.path, 'remote')}
+                >Use remote</button>
+              </div>
+            {/if}
+          {:else}
+            <Badge variant={rm.tone}>{rm.label}</Badge>
+          {/if}
           <span class="w-20 text-right font-mono text-xs text-fg-subtle">{formatBytes(d.size)}</span>
         </div>
       {/each}
@@ -172,7 +215,7 @@
   {#if totals.conflicts.length > 0}
     <p class="mt-2 flex items-center gap-1.5 text-[11px] text-fg-subtle">
       <IconAlert size={11} class="text-danger" />
-      Conflicts are skipped — resolve them by transferring the file manually.
+      Unresolved conflicts are skipped — choose “Use local” or “Use remote” to include them.
     </p>
   {/if}
 
