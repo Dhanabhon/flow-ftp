@@ -9,14 +9,19 @@
 //! here is 1.96), so no `async-trait` macro dependency is needed. The trade-off
 //! is that `RemoteFs` cannot be used as a `dyn` trait object directly; the
 //! application layer holds concrete adapters behind an enum dispatch instead.
+//!
+//! Every method takes `&mut self`: an adapter owns a live, stateful session
+//! (TCP socket, SSH channel, TLS state). Shared concurrent access is the
+//! Application Layer's concern — wrap the adapter in a lock there if needed;
+//! the domain keeps the contract explicit.
 
 use crate::credentials::Credentials;
 use crate::error::CoreResult;
 use crate::file::{FilePath, RemoteFile};
 use crate::transfer::TransferId;
 
-/// A connected remote filesystem. Implementations own a live session (TCP
-/// socket, SSH channel, etc.) for the lifetime of the value.
+/// A connected remote filesystem. Implementations own a live session for the
+/// lifetime of the value.
 pub trait RemoteFs {
     /// Establish a session using the given credentials.
     fn connect(&mut self, creds: &Credentials) -> impl Future<Output = CoreResult<()>>;
@@ -26,25 +31,24 @@ pub trait RemoteFs {
 
     /// List entries in a directory. The implementor may prepend a synthetic
     /// `..` entry when `path` is not the root.
-    fn list(&self, path: &FilePath) -> impl Future<Output = CoreResult<Vec<RemoteFile>>>;
+    fn list(&mut self, path: &FilePath) -> impl Future<Output = CoreResult<Vec<RemoteFile>>>;
 
     /// Stat a single path.
-    fn stat(&self, path: &FilePath) -> impl Future<Output = CoreResult<RemoteFile>>;
+    fn stat(&mut self, path: &FilePath) -> impl Future<Output = CoreResult<RemoteFile>>;
 
     /// Create a directory (non-recursive).
-    fn mkdir(&self, path: &FilePath) -> impl Future<Output = CoreResult<()>>;
+    fn mkdir(&mut self, path: &FilePath) -> impl Future<Output = CoreResult<()>>;
 
     /// Rename/move a path.
-    fn rename(&self, from: &FilePath, to: &FilePath) -> impl Future<Output = CoreResult<()>>;
+    fn rename(&mut self, from: &FilePath, to: &FilePath) -> impl Future<Output = CoreResult<()>>;
 
     /// Delete a file or empty directory.
-    fn delete(&self, path: &FilePath) -> impl Future<Output = CoreResult<()>>;
+    fn delete(&mut self, path: &FilePath) -> impl Future<Output = CoreResult<()>>;
 
-    /// Begin downloading `remote` into `local`. Returns an id the engine uses
-    /// to track progress. The actual byte stream is owned by the adapter /
-    /// transfer crate; the domain only owns the id.
+    /// Begin downloading `remote` into `local`. The byte stream is owned by
+    /// the adapter; the domain only owns the outcome.
     fn download(
-        &self,
+        &mut self,
         id: TransferId,
         remote: &FilePath,
         local: &FilePath,
@@ -52,7 +56,7 @@ pub trait RemoteFs {
 
     /// Begin uploading `local` to `remote`. See [`Self::download`].
     fn upload(
-        &self,
+        &mut self,
         id: TransferId,
         local: &FilePath,
         remote: &FilePath,

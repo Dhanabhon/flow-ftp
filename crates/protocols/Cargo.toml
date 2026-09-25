@@ -1,0 +1,25 @@
+[package]
+name = "flow-protocols"
+description = "FlowFTP protocol adapters — interchangeable RemoteFs implementations for FTP, FTPS, and SFTP."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+flow-core = { path = "../core" }
+suppaftp = { version = "12", default-features = false, features = ["tokio-rustls-ring", "deprecated"] }
+# mdtm() returns chrono::NaiveDateTime; std feature is all we need to convert.
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+# TLS client stack — versions must stay aligned with suppaftp's internal
+# tokio-rustls/rustls so the connector types unify.
+rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std", "tls12"] }
+tokio-rustls = "0.26"
+# Validate server certificates against the OS trust store (Keychain on macOS).
+rustls-platform-verifier = "0.6"
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
