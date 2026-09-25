@@ -33,6 +33,10 @@ pub struct ConnectRequest {
     pub password: String,
     #[serde(default)]
     pub save_keychain: bool,
+    /// Load the password from the OS keychain (saved profiles) instead of
+    /// taking it from the request. The secret never transits to the UI.
+    #[serde(default)]
+    pub use_keychain_password: bool,
 }
 
 /// Establish a remote session. Optionally persists the password in the OS
@@ -46,7 +50,28 @@ pub async fn remote_connect(
     let id = ConnectionId::new(request.id.clone());
     let mut creds = Credentials::new(&request.host, &request.username, request.protocol)
         .with_port(request.port);
-    if !request.password.is_empty() {
+    if request.use_keychain_password {
+        let key_id = id.clone();
+        let stored = tokio::task::spawn_blocking(move || {
+            flow_keychain::KeychainStore::new().load_password(&key_id)
+        })
+        .await
+        .map_err(|e| IpcError {
+            code: "io".into(),
+            message: format!("Keychain task failed: {e}"),
+        })?
+        .map_err(ipc_error)?;
+        match stored {
+            Some(secret) => creds = creds.with_password(secret.reveal().to_string()),
+            None => {
+                return Err(IpcError {
+                    code: "auth-failed".into(),
+                    message: "No saved password for this connection. Connect once with a                         password (and Save to Keychain) to store it."
+                        .into(),
+                })
+            }
+        }
+    } else if !request.password.is_empty() {
         creds = creds.with_password(request.password.clone());
     }
 

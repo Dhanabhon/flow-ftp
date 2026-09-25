@@ -9,6 +9,7 @@
     localHome,
     pickDownloadDirectory,
     pickFilesToUpload,
+    profileList,
     remoteEditOpen
   } from '$lib/ipc';
   import { localDelete, localMkdir, localRename, mkdirRemote, renameRemote } from '$lib/ipc';
@@ -42,6 +43,14 @@
   }
 
   // ── Live data wiring (Tauri only; browser dev stays on mocks) ─────────────
+
+  // Load saved connection profiles (browser dev keeps mocks).
+  $effect(() => {
+    if (!IS_TAURI) return;
+    profileList()
+      .then((profiles) => (app.connections = profiles))
+      .catch(() => {});
+  });
 
   // Initialize the local pane at the user's home directory.
   if (IS_TAURI) {

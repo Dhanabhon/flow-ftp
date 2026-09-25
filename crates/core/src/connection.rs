@@ -30,11 +30,12 @@ impl fmt::Display for ConnectionId {
 }
 
 /// Lifecycle state of a connection, surfaced to the UI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ConnectionStatus {
     Connected,
     Connecting,
+    #[default]
     Disconnected,
     Error,
 }
@@ -51,6 +52,7 @@ pub struct Connection {
     pub host: String,
     pub port: u16,
     pub username: String,
+    #[serde(default)]
     pub status: ConnectionStatus,
     /// Whether the credential is backed by the OS keychain.
     #[serde(default)]

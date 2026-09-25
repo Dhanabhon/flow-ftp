@@ -1,6 +1,7 @@
 mod bridge;
 mod edit;
 mod ipc;
+mod profiles;
 mod sync;
 mod transfers;
 
@@ -36,11 +37,22 @@ pub fn run() {
             transfers::transfer_cancel,
             transfers::transfer_clear_finished,
             ipc::transfer_set_rate_limit,
+            profiles::profile_list,
+            profiles::profile_save,
+            profiles::profile_delete,
             sync::sync_preview,
             sync::sync_execute,
             edit::remote_edit_open,
         ])
         .setup(|app| {
+            // Saved connection profiles from the app config dir.
+            let config_dir = app
+                .path()
+                .app_config_dir()
+                .expect("app config dir must be resolvable");
+            std::fs::create_dir_all(&config_dir).ok();
+            app.manage(profiles::ProfileStore::load(&config_dir));
+
             // Transfer engine: event forwarding + worker pool.
             let engine = start_engine(app.handle().clone());
             app.manage(engine);

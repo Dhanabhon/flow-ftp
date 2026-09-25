@@ -1,7 +1,8 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import type { View } from '$lib/types';
+  import { connect, profileDelete, profileSave } from '$lib/ipc';
+  import type { Connection, View } from '$lib/types';
   import {
     IconPlug,
     IconArrowUpDown,
@@ -10,6 +11,7 @@
     IconSettings,
     IconStar,
     IconClock,
+    IconTrash,
     IconServer,
     IconPlus,
     IconWifi,
@@ -35,6 +37,70 @@
       .sort((a, b) => (b.lastConnected ?? 0) - (a.lastConnected ?? 0))
       .slice(0, 3)
   );
+
+  /**
+   * Click a saved connection: activate it when already connected, reconnect
+   * via keychain when possible, or open Quick Connect prefilled.
+   */
+  async function openConnection(conn: Connection) {
+    if (conn.status === 'connected') {
+      app.activeConnectionId = conn.id;
+      return;
+    }
+    if (conn.keychain) {
+      try {
+        const connection = await connect({
+          id: conn.id,
+          protocol: conn.protocol,
+          host: conn.host,
+          port: conn.port,
+          username: conn.username,
+          password: '',
+          saveKeychain: false,
+          useKeychainPassword: true
+        });
+        app.upsertConnection(connection);
+        // Refresh lastConnected on disk (status normalizes to disconnected).
+        profileSave(connection)
+          .then((profiles) => (app.connections = profiles))
+          .catch(() => {});
+      } catch (e) {
+        app.notify('warning', 'Could not reconnect', e instanceof Error ? e.message : String(e));
+        app.quickConnectPrefill = {
+          protocol: conn.protocol,
+          host: conn.host,
+          port: conn.port,
+          username: conn.username
+        };
+        app.quickConnectOpen = true;
+      }
+      return;
+    }
+    app.quickConnectPrefill = {
+      protocol: conn.protocol,
+      host: conn.host,
+      port: conn.port,
+      username: conn.username
+    };
+    app.quickConnectOpen = true;
+  }
+
+  async function toggleFavorite(conn: Connection) {
+    try {
+      app.connections = await profileSave({ ...conn, favorite: !conn.favorite });
+    } catch (e) {
+      app.notify('danger', 'Could not update favorite', e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function deleteProfile(conn: Connection) {
+    try {
+      app.connections = await profileDelete(conn.id);
+      if (app.activeConnectionId === conn.id) app.activeConnectionId = null;
+    } catch (e) {
+      app.notify('danger', 'Could not delete connection', e instanceof Error ? e.message : String(e));
+    }
+  }
 
   function statusDot(status: string) {
     return status === 'connected'
@@ -89,14 +155,34 @@
   </div>
   <div class="flex flex-col gap-0.5 px-2">
     {#each favorites as conn (conn.id)}
-      <button
-        class="group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+      <div
+        class="group flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+        role="button"
+        tabindex="0"
+        onclick={() => openConnection(conn)}
+        onkeydown={(e) => e.key === 'Enter' && openConnection(conn)}
       >
         <span class={cn('h-1.5 w-1.5 shrink-0 rounded-full', statusDot(conn.status))}></span>
         <IconServer size={14} class="shrink-0 text-fg-subtle group-hover:text-fg-muted" />
         <span class="flex-1 truncate">{conn.name}</span>
-        <span class="font-mono text-[10px] text-fg-faint uppercase">{conn.protocol}</span>
-      </button>
+        <span class="hidden items-center gap-0.5 group-hover:flex">
+          <button
+            class="rounded p-0.5 text-fg-subtle hover:text-warning"
+            title="Remove from favorites"
+            onclick={(e) => { e.stopPropagation(); toggleFavorite(conn); }}
+          >
+            <IconStar size={12} />
+          </button>
+          <button
+            class="rounded p-0.5 text-fg-subtle hover:text-danger"
+            title="Delete connection"
+            onclick={(e) => { e.stopPropagation(); deleteProfile(conn); }}
+          >
+            <IconTrash size={12} />
+          </button>
+        </span>
+        <span class="font-mono text-[10px] text-fg-faint uppercase group-hover:hidden">{conn.protocol}</span>
+      </div>
     {/each}
   </div>
 
@@ -110,6 +196,7 @@
     {#each recent as conn (conn.id)}
       <button
         class="group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
+        onclick={() => openConnection(conn)}
       >
         <IconClock size={14} class="shrink-0 text-fg-faint" />
         <span class="flex-1 truncate">{conn.name}</span>

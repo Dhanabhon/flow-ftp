@@ -77,6 +77,8 @@ function mockOr<T>(tauri: () => Promise<T>, mock: () => T): Promise<T> {
 
 /** Parameters for establishing a remote session. */
 export interface ConnectParams {
+  /** Load the password from the OS keychain (saved profiles) instead. */
+  useKeychainPassword?: boolean;
   /** Client-generated unique id (UUID). */
   id: string;
   protocol: Protocol;
@@ -91,7 +93,7 @@ export interface ConnectParams {
 /** Establish a remote session. Returns the connection record to display. */
 export function connect(params: ConnectParams): Promise<Connection> {
   return mockOr(
-    () => call<Connection>('remote_connect', { request: params }),
+    () => call<Connection>('remote_connect', { request: { ...params, useKeychainPassword: params.useKeychainPassword ?? false } }),
     () => ({
       id: params.id,
       name: params.host,
@@ -112,6 +114,34 @@ export function disconnect(connectionId: string): Promise<void> {
   return mockOr(
     () => call<void>('remote_disconnect', { connectionId }),
     () => undefined,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Saved connection profiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** All saved profiles (passwords are never included). */
+export function profileList(): Promise<Connection[]> {
+  return mockOr(
+    () => call<Connection[]>('profile_list'),
+    () => [],
+  );
+}
+
+/** Upsert a profile and persist; returns the fresh list. */
+export function profileSave(profile: Connection): Promise<Connection[]> {
+  return mockOr(
+    () => call<Connection[]>('profile_save', { profile }),
+    () => [profile],
+  );
+}
+
+/** Delete a profile; returns the fresh list. */
+export function profileDelete(id: string): Promise<Connection[]> {
+  return mockOr(
+    () => call<Connection[]>('profile_delete', { id }),
+    () => [],
   );
 }
 

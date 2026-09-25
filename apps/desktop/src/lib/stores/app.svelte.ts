@@ -20,6 +20,13 @@ class AppState {
   commandPaletteOpen = $state(false);
   quickConnectOpen = $state(false);
   syncOpen = $state(false);
+  /** Fields prefilling the Quick Connect form (from a saved profile). */
+  quickConnectPrefill = $state<{
+    protocol: Connection['protocol'];
+    host: string;
+    port: number;
+    username: string;
+  } | null>(null);
 
   // ── Connections ─────────────────────────────────────────────
   connections = $state<Connection[]>(mockConnections);

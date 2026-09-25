@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import { connect } from '$lib/ipc';
+  import { connect, IS_TAURI, profileSave } from '$lib/ipc';
   import type { Protocol } from '$lib/types';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
@@ -28,14 +28,33 @@
     port = p.port;
   }
 
+  // Prefill from a saved profile when the modal opens via the sidebar.
+  $effect(() => {
+    if (!app.quickConnectOpen) return;
+    const prefill = app.quickConnectPrefill;
+    if (prefill) {
+      protocol = prefill.protocol;
+      host = prefill.host;
+      port = prefill.port;
+      username = prefill.username;
+      app.quickConnectPrefill = null;
+    }
+  });
+
   /** Establish the session (real backend under Tauri, mock in the browser). */
   async function submit() {
     if (!host.trim() || connecting) return;
     connecting = true;
     errorMessage = null;
     try {
+      // Reuse the profile id when reconnecting to an existing saved one,
+      // so the keychain entry and profile stay stable.
+      const existing = app.connections.find(
+        (c) => c.host === host.trim() && c.port === port && c.username === (username.trim() || 'anonymous')
+      );
+      const id = existing?.id ?? crypto.randomUUID();
       const connection = await connect({
-        id: crypto.randomUUID(),
+        id,
         protocol,
         host: host.trim(),
         port,
@@ -44,6 +63,12 @@
         saveKeychain: saveToKeychain
       });
       app.upsertConnection(connection);
+      // Persist the profile (status normalizes to disconnected on disk).
+      if (IS_TAURI) {
+        profileSave(connection)
+          .then((profiles) => (app.connections = profiles))
+          .catch(() => {});
+      }
       app.remotePath = '/';
       app.quickConnectOpen = false;
       // Reset the form for the next connect.
