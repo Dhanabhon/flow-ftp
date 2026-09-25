@@ -1487,6 +1487,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "flow-sync"
+version = "0.0.1"
+dependencies = [
+ "flow-core",
+ "serde_json",
+]
+
+[[package]]
 name = "flow-transfer"
 version = "0.0.1"
 dependencies = [
