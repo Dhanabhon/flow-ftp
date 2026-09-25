@@ -84,6 +84,7 @@ impl fmt::Display for FilePath {
 
 /// A directory entry on a remote filesystem.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoteFile {
     pub name: String,
     pub kind: FileKind,
@@ -98,6 +99,19 @@ pub struct RemoteFile {
     pub owner: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+}
+
+/// Format the low 9 permission bits as the classic `rwxr-xr-x` string — the
+/// canonical display form for [`RemoteFile::permissions`].
+pub fn format_permissions(bits: u32) -> String {
+    let mut out = String::with_capacity(9);
+    for shift in [6, 3, 0] {
+        let triad = (bits >> shift) & 0o7;
+        out.push(if triad & 0o4 != 0 { 'r' } else { '-' });
+        out.push(if triad & 0o2 != 0 { 'w' } else { '-' });
+        out.push(if triad & 0o1 != 0 { 'x' } else { '-' });
+    }
+    out
 }
 
 impl RemoteFile {
@@ -185,5 +199,15 @@ mod tests {
         let json = serde_json::to_string(&f).unwrap();
         assert!(!json.contains("permissions"));
         assert!(!json.contains("owner"));
+    }
+
+    #[test]
+    fn permission_formatting() {
+        assert_eq!(format_permissions(0o755), "rwxr-xr-x");
+        assert_eq!(format_permissions(0o644), "rw-r--r--");
+        assert_eq!(format_permissions(0o000), "---------");
+        assert_eq!(format_permissions(0o777), "rwxrwxrwx");
+        // High bits (setuid etc.) are masked off.
+        assert_eq!(format_permissions(0o104755), "rwxr-xr-x");
     }
 }

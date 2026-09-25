@@ -1437,6 +1437,7 @@ dependencies = [
 name = "flow-core"
 version = "0.0.1"
 dependencies = [
+ "async-trait",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -1446,11 +1447,16 @@ dependencies = [
 name = "flow-ftp"
 version = "0.0.1"
 dependencies = [
+ "async-trait",
+ "flow-core",
+ "flow-keychain",
+ "flow-protocols",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tokio",
 ]
 
 [[package]]
@@ -1465,6 +1471,7 @@ dependencies = [
 name = "flow-protocols"
 version = "0.0.1"
 dependencies = [
+ "async-trait",
  "chrono",
  "flow-core",
  "russh",

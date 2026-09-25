@@ -40,8 +40,10 @@ pub enum ConnectionStatus {
 }
 
 /// User-facing connection record — mirrors `Connection` in
-/// `apps/desktop/src/lib/types.ts`.
+/// `apps/desktop/src/lib/types.ts`. Serialized in camelCase so the Tauri IPC
+/// boundary maps 1:1 onto the TypeScript shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Connection {
     pub id: ConnectionId,
     pub name: String,

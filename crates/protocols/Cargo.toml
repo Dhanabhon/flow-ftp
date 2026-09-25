@@ -24,5 +24,7 @@ russh = "0.63"
 russh-sftp = "3"
 tokio = { workspace = true }
 
+async-trait = { workspace = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

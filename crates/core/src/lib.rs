@@ -25,7 +25,7 @@ pub mod transfer;
 pub use connection::{Connection, ConnectionId, ConnectionStatus};
 pub use credentials::{Credentials, SecretString};
 pub use error::{CoreError, CoreResult};
-pub use file::{FileKind, FilePath, RemoteFile};
+pub use file::{FileKind, FilePath, RemoteFile, format_permissions};
 pub use protocol::Protocol;
 pub use remote::RemoteFs;
 pub use sync::{DiffReason, SyncDiff, SyncDirection};

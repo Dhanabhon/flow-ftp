@@ -12,6 +12,7 @@
 
 use std::time::Duration;
 
+use async_trait::async_trait;
 use flow_core::{
     Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile, RemoteFs, TransferId,
 };
@@ -232,6 +233,7 @@ impl Default for FtpFs {
     }
 }
 
+#[async_trait]
 impl RemoteFs for FtpFs {
     async fn connect(&mut self, creds: &Credentials) -> CoreResult<()> {
         let addr = format!("{}:{}", creds.host, creds.port);
@@ -344,6 +346,7 @@ impl FtpsFs {
     }
 }
 
+#[async_trait]
 impl RemoteFs for FtpsFs {
     async fn connect(&mut self, creds: &Credentials) -> CoreResult<()> {
         let addr = format!("{}:{}", creds.host, creds.port);

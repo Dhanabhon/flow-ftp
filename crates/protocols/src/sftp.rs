@@ -14,8 +14,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use flow_core::{
-    Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile, RemoteFs, TransferId,
+    format_permissions, Credentials, CoreError, CoreResult, FileKind, FilePath, RemoteFile,
+    RemoteFs, TransferId,
 };
 use russh::client::{self, Handle};
 use russh::keys::{HashAlg, PublicKeyOrCertificate};
@@ -160,6 +162,7 @@ impl Default for SftpFs {
     }
 }
 
+#[async_trait]
 impl RemoteFs for SftpFs {
     async fn connect(&mut self, creds: &Credentials) -> CoreResult<()> {
         // The handle keeps the SSH connection alive; store it alongside the
@@ -299,31 +302,9 @@ fn attrs_to_remote_file(name: String, attrs: FileAttributes) -> RemoteFile {
     }
 }
 
-/// Format the low 9 permission bits as the classic `rwxr-xr-x` string.
-fn format_permissions(bits: u32) -> String {
-    let mut out = String::with_capacity(9);
-    for shift in [6, 3, 0] {
-        let triad = (bits >> shift) & 0o7;
-        out.push(if triad & 0o4 != 0 { 'r' } else { '-' });
-        out.push(if triad & 0o2 != 0 { 'w' } else { '-' });
-        out.push(if triad & 0o1 != 0 { 'x' } else { '-' });
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn permission_formatting() {
-        assert_eq!(format_permissions(0o755), "rwxr-xr-x");
-        assert_eq!(format_permissions(0o644), "rw-r--r--");
-        assert_eq!(format_permissions(0o000), "---------");
-        assert_eq!(format_permissions(0o777), "rwxrwxrwx");
-        // High bits (setuid etc.) are masked off.
-        assert_eq!(format_permissions(0o104755), "rwxr-xr-x");
-    }
 
     #[test]
     fn fingerprint_pin_policy_matches_string_prefix() {
