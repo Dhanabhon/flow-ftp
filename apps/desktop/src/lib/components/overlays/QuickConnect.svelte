@@ -25,6 +25,16 @@
     { id: 'ftp', label: 'FTP', desc: 'Plain FTP', port: 21, secure: false }
   ];
 
+  /** A saved profile matching what is typed (its id gets reused). */
+  const matchingProfile = $derived(
+    app.connections.find(
+      (c) =>
+        c.host === host.trim() &&
+        c.port === port &&
+        c.username === (username.trim() || 'anonymous')
+    )
+  );
+
   function chooseProtocol(p: (typeof protocols)[number]) {
     protocol = p.id;
     port = p.port;
@@ -55,6 +65,10 @@
         (c) => c.host === host.trim() && c.port === port && c.username === (username.trim() || 'anonymous')
       );
       const id = existing?.id ?? crypto.randomUUID();
+      // Hidden keychain toggle (ad-hoc connect to an unknown server) must
+      // not leak a stale checked state into the request.
+      const keychainWanted =
+        saveToKeychain && (app.quickConnectMode === 'new' || !!matchingProfile);
       const connection = await connect({
         id,
         protocol,
@@ -62,7 +76,7 @@
         port,
         username: username.trim() || 'anonymous',
         password,
-        saveKeychain: saveToKeychain
+        saveKeychain: keychainWanted
       });
       app.upsertConnection(connection);
       // Persist the profile only when this is a New Connection (and wanted).
@@ -194,20 +208,35 @@
     </label>
   {/if}
 
-  <!-- Keychain toggle -->
-  <label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-bg-panel p-3">
-    <input type="checkbox" bind:checked={saveToKeychain} class="h-4 w-4 accent-[var(--color-accent)]" />
-    <div class="flex-1">
-      <div class="flex items-center gap-1.5">
-        <IconLock size={13} class="text-success" />
-        <span class="text-sm font-medium text-fg">Save to Keychain</span>
-      </div>
-      <p class="text-[11px] text-fg-subtle">Encrypt and store credentials securely via macOS Keychain.</p>
+  <!-- Keychain toggle: meaningful when a profile (or New Connection) will
+       reference it. A pure ad-hoc connect to an unknown server keeps the
+       password in memory only, so the toggle would be a no-op. -->
+  {#if app.quickConnectMode === 'quick' && !matchingProfile}
+    <div class="flex items-start gap-2.5 rounded-md border border-border bg-bg-panel p-3">
+      <IconLock size={13} class="mt-0.5 shrink-0 text-fg-subtle" />
+      <p class="text-[11px] leading-relaxed text-fg-subtle">
+        The password is kept for this session only.
+        Use <span class="font-medium text-fg">New Connection</span> if you want FlowFTP to
+        remember this server and store the password in the Keychain.
+      </p>
     </div>
-    {#if saveToKeychain}
-      <Badge variant="success" dot>Secured</Badge>
-    {/if}
-  </label>
+  {:else}
+    <label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-bg-panel p-3">
+      <input type="checkbox" bind:checked={saveToKeychain} class="h-4 w-4 accent-[var(--color-accent)]" />
+      <div class="flex-1">
+        <div class="flex items-center gap-1.5">
+          <IconLock size={13} class="text-success" />
+          <span class="text-sm font-medium text-fg">
+            {matchingProfile ? 'Update saved password' : 'Save to Keychain'}
+          </span>
+        </div>
+        <p class="text-[11px] text-fg-subtle">Encrypt and store credentials securely via macOS Keychain.</p>
+      </div>
+      {#if saveToKeychain}
+        <Badge variant="success" dot>Secured</Badge>
+      {/if}
+    </label>
+  {/if}
 
   <!-- Connection error, with suggested fix per the UX error rules -->
   {#if errorMessage}
