@@ -20,9 +20,53 @@ struct QuitInfo {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     transcript::install();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(|app| {
+        use tauri::menu::{AboutMetadata, MenuBuilder, SubmenuBuilder};
+
+        let app_menu = SubmenuBuilder::new(app, "FlowFTP")
+            .about_with_text(
+                "About FlowFTP",
+                Some(AboutMetadata {
+                    name: Some("FlowFTP".into()),
+                    version: Some(app.package_info().version.to_string()),
+                    ..Default::default()
+                }),
+            )
+            .separator()
+            .hide_with_text("Hide FlowFTP")
+            .hide_others()
+            .separator()
+            .quit_with_text("Quit FlowFTP")
+            .build()?;
+        let file_menu = SubmenuBuilder::new(app, "File").close_window().build()?;
+        let edit_menu = SubmenuBuilder::new(app, "Edit")
+            .undo()
+            .redo()
+            .separator()
+            .cut()
+            .copy()
+            .paste()
+            .select_all()
+            .build()?;
+        let view_menu = SubmenuBuilder::new(app, "View").fullscreen().build()?;
+        let window_menu = SubmenuBuilder::new(app, "Window")
+            .minimize()
+            .maximize()
+            .separator()
+            .close_window()
+            .build()?;
+
+        MenuBuilder::new(app)
+            .items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
+            .build()
+    });
+
+    builder
         .on_window_event(|window, event| {
             // Quit confirmation: warn before killing in-flight transfers or
             // dropping live server sessions.
