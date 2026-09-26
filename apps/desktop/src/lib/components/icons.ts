@@ -62,6 +62,7 @@ import CornerDownLeft from 'lucide-svelte/icons/corner-down-left';
 import Sun from 'lucide-svelte/icons/sun';
 import Moon from 'lucide-svelte/icons/moon';
 import Monitor from 'lucide-svelte/icons/monitor';
+import EyeOff from 'lucide-svelte/icons/eye-off';
 import Pencil from 'lucide-svelte/icons/pencil';
 import FolderPlus from 'lucide-svelte/icons/folder-plus';
 
@@ -126,6 +127,7 @@ export {
   Sun as IconSun,
   Moon as IconMoon,
   Monitor as IconMonitor,
+  EyeOff as IconEyeOff,
   Pencil as IconPencil,
   FolderPlus as IconFolderPlus
 };

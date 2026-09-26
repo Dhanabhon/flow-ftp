@@ -6,7 +6,7 @@
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
-  import { IconZap, IconLock, IconGlobe, IconServer, IconAlert, IconLoader } from '$lib/components/icons';
+  import { IconZap, IconLock, IconGlobe, IconServer, IconAlert, IconLoader, IconEye, IconEyeOff } from '$lib/components/icons';
 
   let protocol = $state<Protocol>('sftp');
   let host = $state('');
@@ -14,6 +14,7 @@
   let username = $state('');
   let password = $state('');
   let saveToKeychain = $state(true);
+  let showPassword = $state(false);
   let connecting = $state(false);
   let errorMessage = $state<string | null>(null);
 
@@ -151,12 +152,27 @@
     </label>
     <label class="block">
       <span class="mb-1 block text-xs font-medium text-fg-muted">Password</span>
-      <input
-        type="password"
-        class="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
-        placeholder="••••••••"
-        bind:value={password}
-      />
+      <div class="flex items-center gap-1 rounded-md border border-border bg-bg pr-1 pl-3 focus-within:border-accent">
+        <input
+          type={showPassword ? 'text' : 'password'}
+          class="min-w-0 flex-1 bg-transparent py-2 text-sm text-fg outline-none placeholder:text-fg-faint"
+          placeholder="••••••••"
+          bind:value={password}
+        />
+        <button
+          type="button"
+          class="shrink-0 rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          title={showPassword ? 'Hide password' : 'Show password'}
+          onclick={() => (showPassword = !showPassword)}
+        >
+          {#if showPassword}
+            <IconEyeOff size={14} />
+          {:else}
+            <IconEye size={14} />
+          {/if}
+        </button>
+      </div>
     </label>
   </div>
 
