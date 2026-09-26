@@ -15,7 +15,7 @@
   const isDark = $derived(theme.resolved === 'dark');
 </script>
 
-<Tooltip label={isDark ? 'Switch to Light' : 'Switch to Dark'}>
+<Tooltip label={isDark ? 'Switch to Light' : 'Switch to Dark'} side="bottom">
   <Button
     variant="ghost"
     size="icon-sm"
