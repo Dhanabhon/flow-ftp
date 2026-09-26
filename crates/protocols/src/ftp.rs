@@ -62,7 +62,10 @@ async fn login<T: TokioTlsStream + Send>(
 }
 
 /// List a directory. Prefers MLSD (RFC 3659, machine-readable) and falls back
-/// to the classic LIST parser for servers without it.
+/// to the classic LIST parser for servers without it. MLSD failures are
+/// expected on servers without the feature; a LIST failure is the real error
+/// and is annotated with the command and path for diagnosis (e.g. symlinks a
+/// server refuses to follow).
 async fn list_entries<T: TokioTlsStream + Send>(
     stream: &mut ImplAsyncFtpStream<T>,
     path: &FilePath,
@@ -77,7 +80,15 @@ async fn list_entries<T: TokioTlsStream + Send>(
         Err(_) => stream
             .list(Some(dir))
             .await
-            .map_err(map_ftp_error)?
+            .map_err(|e| {
+                let mapped = map_ftp_error(e);
+                match mapped {
+                    CoreError::Protocol(text) => {
+                        CoreError::Protocol(format!("LIST {dir}: {text}"))
+                    }
+                    other => other,
+                }
+            })?
             .iter()
             .filter_map(|line| ListParser::parse_posix(line).ok())
             .map(to_remote_file)

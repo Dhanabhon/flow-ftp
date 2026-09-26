@@ -97,7 +97,10 @@
       .catch((e: Error) => (app.errors.local = e.message));
   });
 
-  // Remote listing follows the active connection + remote path.
+  // Remote listing follows the active connection + remote path. A failed
+  // navigation reverts to the last folder that listed successfully, so the
+  // UI never shows stale contents of a folder we are not in.
+  let lastGoodRemotePath = $state<string | null>(null);
   $effect(() => {
     if (!IS_TAURI) return;
     const connectionId = app.activeConnectionId;
@@ -107,14 +110,25 @@
       app.remoteFiles = [];
       app.remoteSelected = new Set();
       app.errors.remote = null;
+      lastGoodRemotePath = null;
       return;
     }
     listRemote(connectionId, path)
       .then((files) => {
         app.remoteFiles = files;
         app.errors.remote = null;
+        lastGoodRemotePath = path;
       })
-      .catch((e: Error) => (app.errors.remote = e.message));
+      .catch((e: Error) => {
+        app.errors.remote = e.message;
+        app.remoteFiles = [];
+        app.remoteSelected = new Set();
+        if (app.inspector?.side === 'remote') app.inspector = null;
+        // Navigation failed: step back to the last folder that worked.
+        if (lastGoodRemotePath && lastGoodRemotePath !== path) {
+          app.remotePath = lastGoodRemotePath;
+        }
+      });
   });
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
