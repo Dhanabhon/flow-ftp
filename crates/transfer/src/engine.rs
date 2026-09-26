@@ -303,6 +303,22 @@ impl TransferEngine {
         records
     }
 
+    /// How many transfers would be lost if the app closed now
+    /// (active, queued, or paused). Drives the quit confirmation.
+    pub async fn pending_work_count(&self) -> usize {
+        let state = self.inner.state.lock().await;
+        state
+            .jobs
+            .values()
+            .filter(|job| {
+                matches!(
+                    job.status,
+                    TransferStatus::Active | TransferStatus::Queued | TransferStatus::Paused
+                )
+            })
+            .count()
+    }
+
     /// Drop completed/failed/canceled records from the list.
     pub async fn clear_finished(&self) {
         let mut state = self.inner.state.lock().await;

@@ -14,6 +14,43 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .on_window_event(|window, event| {
+            // Quit confirmation: warn before killing in-flight transfers.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let engine = window
+                    .app_handle()
+                    .state::<std::sync::Arc<flow_transfer::TransferEngine>>()
+                    .inner()
+                    .clone();
+                let pending = tauri::async_runtime::block_on(engine.pending_work_count());
+                if pending == 0 {
+                    return; // nothing at stake: close as usual
+                }
+                api.prevent_close();
+
+                let handle = window.app_handle().clone();
+                let window = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_dialog::{
+                        DialogExt, MessageDialogButtons, MessageDialogKind,
+                    };
+                    let plural = if pending == 1 { "" } else { "s" };
+                    let quit = handle
+                        .dialog()
+                        .message(format!(
+                            "{pending} transfer{plural} are still running or queued. \
+                             Quitting now stops them; resumable files keep their progress."
+                        ))
+                        .title("Quit FlowFTP?")
+                        .kind(MessageDialogKind::Warning)
+                        .buttons(MessageDialogButtons::OkCancelCustom("Quit".into(), "Cancel".into()))
+                        .blocking_show();
+                    if quit {
+                        let _ = window.destroy();
+                    }
+                });
+            }
+        })
         .manage(ConnectionRegistry::default())
         .manage(CredentialCache::default())
         .manage(edit::EditSessions::default())

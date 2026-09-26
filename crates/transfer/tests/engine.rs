@@ -578,3 +578,31 @@ async fn clear_finished_removes_terminal_records_only() {
     assert!(records.iter().all(|r| r.id.as_str() != "f1"));
     assert!(records.iter().any(|r| r.id.as_str() == "f2"));
 }
+
+#[tokio::test]
+async fn pending_work_counts_unfinished_only() {
+    let remote = FakeRemote::default();
+    remote.put("blob.bin", b"data");
+    let (tx, _rx) = mpsc::unbounded_channel();
+
+    let engine = Arc::new(TransferEngine::new(
+        Arc::new(FakeConnector { remote }),
+        tx,
+        RetryPolicy::standard(),
+        None,
+    ));
+
+    // No workers: jobs stay queued and count as pending.
+    engine
+        .enqueue(TransferId::new("w1"), spec(TransferDirection::Download, "pending-a"), creds())
+        .await;
+    engine
+        .enqueue(TransferId::new("w2"), spec(TransferDirection::Download, "pending-b"), creds())
+        .await;
+    assert_eq!(engine.pending_work_count().await, 2);
+
+    engine.cancel(&TransferId::new("w1")).await.unwrap();
+    assert_eq!(engine.pending_work_count().await, 1);
+    engine.clear_finished().await;
+    assert_eq!(engine.pending_work_count().await, 1); // canceled job is gone, queued one stays
+}
