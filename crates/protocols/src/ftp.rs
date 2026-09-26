@@ -58,7 +58,9 @@ async fn login<T: TokioTlsStream + Send>(
                 username: creds.username.clone(),
             },
             other => map_ftp_error(other),
-        })
+        })?;
+    log::debug!("login OK as {}", creds.username);
+    Ok(())
 }
 
 /// CWD into a directory before running a command against its entries.
@@ -79,7 +81,15 @@ async fn enter_dir<T: TokioTlsStream + Send>(
             CoreError::Protocol(text) => CoreError::Protocol(format!("CWD {dir}: {text}")),
             other => other,
         }
-    })
+    })?;
+    // PWD is the server's own idea of where we are. Logging it after every
+    // CWD makes a server that acknowledges the command but lands elsewhere
+    // visible in the transcript.
+    match stream.pwd().await {
+        Ok(pwd) => log::debug!("CWD {dir} -> PWD {pwd}"),
+        Err(e) => log::debug!("CWD {dir} -> PWD failed: {e}"),
+    }
+    Ok(())
 }
 
 /// List a directory. Prefers MLSD (RFC 3659, machine-readable) and falls back
@@ -92,29 +102,45 @@ async fn list_entries<T: TokioTlsStream + Send>(
     path: &FilePath,
 ) -> CoreResult<Vec<RemoteFile>> {
     enter_dir(stream, path).await?;
-    let entries = match stream.mlsd(None).await {
+    let mut method = "MLSD";
+    let entries: Vec<RemoteFile> = match stream.mlsd(None).await {
         Ok(lines) => lines
             .iter()
             .filter_map(|line| ListParser::parse_mlsd(line).ok())
             .map(to_remote_file)
             .collect(),
-        Err(_) => stream
-            .list(None)
-            .await
-            .map_err(|e| {
-                let mapped = map_ftp_error(e);
-                match mapped {
-                    CoreError::Protocol(text) => {
-                        CoreError::Protocol(format!("LIST {path}: {text}"))
+        Err(_) => {
+            method = "LIST";
+            stream
+                .list(None)
+                .await
+                .map_err(|e| {
+                    let mapped = map_ftp_error(e);
+                    match mapped {
+                        CoreError::Protocol(text) => {
+                            CoreError::Protocol(format!("LIST {path}: {text}"))
+                        }
+                        other => other,
                     }
-                    other => other,
-                }
-            })?
-            .iter()
-            .filter_map(|line| ListParser::parse_posix(line).ok())
-            .map(to_remote_file)
-            .collect(),
+                })?
+                .iter()
+                .filter_map(|line| ListParser::parse_posix(line).ok())
+                .map(to_remote_file)
+                .collect()
+        }
     };
+    let preview: Vec<String> = entries
+        .iter()
+        .take(3)
+        .map(|f| f.name.chars().take(24).collect())
+        .collect();
+    log::debug!(
+        "LIST {}: {} entries via {}: {}",
+        path.as_str(),
+        entries.len(),
+        method,
+        preview.join(", ")
+    );
     Ok(entries)
 }
 

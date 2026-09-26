@@ -104,15 +104,25 @@
   // its listing intact (Finder behavior). Effects only handle connection
   // changes and manual refreshes.
 
+  // Latest-wins guard for in-flight listings: the initial listing after a
+  // connect can still be travelling when the user double-clicks into a
+  // folder. Without the guard the slower response commits last and paints
+  // the parent directory's rows under the child's breadcrumb — and the next
+  // double-click then targets a doubled path that doesn't exist.
+  let remoteListSeq = 0;
+
   async function loadRemote() {
     const connectionId = app.activeConnectionId;
     const path = app.remotePath;
     if (!connectionId) return;
+    const seq = ++remoteListSeq;
     try {
       const files = await listRemote(connectionId, path);
+      if (seq !== remoteListSeq) return;
       app.remoteFiles = files;
       app.errors.remote = null;
     } catch (e) {
+      if (seq !== remoteListSeq) return;
       app.errors.remote = e instanceof Error ? e.message : String(e);
       app.remoteFiles = [];
       app.remoteSelected = new Set();
@@ -124,14 +134,17 @@
   async function goRemote(target: string) {
     const connectionId = app.activeConnectionId;
     if (!connectionId || target === app.remotePath) return;
+    const seq = ++remoteListSeq;
     try {
       const files = await listRemote(connectionId, target);
+      if (seq !== remoteListSeq) return;
       app.remotePath = target;
       app.remoteFiles = files;
       app.remoteSelected = new Set();
       app.errors.remote = null;
       if (app.inspector?.side === 'remote') app.inspector = null;
     } catch (e) {
+      if (seq !== remoteListSeq) return;
       // Stay in the current folder; surface why the target is unavailable.
       app.errors.remote = e instanceof Error ? e.message : String(e);
     }
@@ -148,17 +161,17 @@
     }
   }
 
-  // Connection changes: fresh session starts at root; disconnected clears.
+  // Connection changes: fresh session starts at root with a clean slate;
+  // disconnected clears. Stale rows from a previous session must not linger
+  // while the first listing travels.
   $effect(() => {
     if (!IS_TAURI) return;
     const connectionId = app.activeConnectionId;
-    if (!connectionId) {
-      app.remoteFiles = [];
-      app.remoteSelected = new Set();
-      app.errors.remote = null;
-      if (app.inspector?.side === 'remote') app.inspector = null;
-      return;
-    }
+    app.remoteFiles = [];
+    app.remoteSelected = new Set();
+    app.errors.remote = null;
+    if (app.inspector?.side === 'remote') app.inspector = null;
+    if (!connectionId) return;
     app.remotePath = '/';
     untrack(() => {
       void loadRemote();

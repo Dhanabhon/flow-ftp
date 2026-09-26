@@ -11,6 +11,8 @@ repository.workspace = true
 [dependencies]
 flow-core = { path = "../core" }
 suppaftp = { version = "12", default-features = false, features = ["tokio-rustls-ring", "deprecated"] }
+# Structured command transcripts for diagnosing misbehaving servers.
+log = "0.4"
 # mdtm() returns chrono::NaiveDateTime; std feature is all we need to convert.
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 # TLS client stack — versions must stay aligned with suppaftp's internal
