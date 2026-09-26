@@ -43,49 +43,55 @@ Accessibility is a **first-class feature**, tracked as a release gate, not a nic
 - [x] Drag region + overlay titlebar working
 - [x] Project documentation (`AGENTS.md`, `DESIGN.md`, `PRODUCT.md`, `ARCHITECTURE.md`)
 
-### Phase 1 — UI Shell 🚧
+### Phase 1 — UI Shell ✅
 - [x] Header with command search, quick connect, theme toggle
 - [x] Sidebar: Connections / Transfers / Sync / History / Settings, Favorites, Recent
-- [x] Dual-pane file browser (local + remote)
+- [x] Dual-pane file browser (local + remote) with draggable pane splitter
 - [x] Transfer queue with live progress + status
-- [x] Preview panel (Quick Look style)
+- [x] Preview panel (Quick Look style): local images and text, remote placeholder
 - [x] Command Palette (⌘K)
-- [x] Quick Connect modal
+- [x] Quick Connect modal (Quick vs New connection semantics, password reveal)
 - [x] Sync Preview modal
 - [x] Dark / Light theme toggle with system preference
-- [ ] Wire UI to live mock data refresh (TanStack Query plumbing)
+- [x] Drag & drop: between panes and from Finder, with overwrite confirmation
+- [x] Themed quit confirmation guarding live transfers and connections
 
-### Phase 2 — Real Protocols 📋
-- [ ] `crates/core` domain models + `RemoteFs` trait
-- [ ] `crates/protocols` FTP adapter (`suppaftp`)
-- [ ] `crates/protocols` FTPS adapter (TLS)
-- [ ] `crates/protocols` SFTP adapter (`russh`)
-- [ ] `crates/keychain` credential storage (`keyring-rs`)
-- [ ] Tauri command bridge: connect / list / download / upload / delete / rename
-- [ ] Real connection list + favorites persistence
+### Phase 2 — Real Protocols ✅
+- [x] `crates/core` domain models + `RemoteFs` trait
+- [x] `crates/protocols` FTP adapter (`suppaftp`)
+- [x] `crates/protocols` FTPS adapter (explicit + implicit TLS)
+- [x] `crates/protocols` SFTP adapter (`russh` + `russh-sftp`)
+- [x] `crates/keychain` credential storage (`keyring-rs`)
+- [x] Tauri command bridge: connect / list / download / upload / delete / rename
+- [x] Real connection list + favorites persistence (profiles in the app config dir)
+- [x] CWD-relative command layer for shared-hosting FTP compatibility, MLSD→LIST fallback
+- [x] Deterministic navigation (list-first, commit-after) with loading indicator and 30s op timeout
 
-### Phase 3 — Transfer Engine 📋
-- [ ] `crates/transfer` queue with priority
-- [ ] Pause / resume / retry with backoff
-- [ ] Resumable transfers (FTP `REST`, SFTP offset)
-- [ ] Live progress events (speed, ETA)
-- [ ] Bandwidth limiting
+### Phase 3 — Transfer Engine ✅
+- [x] `crates/transfer` queue with priority
+- [x] Pause / resume / retry with backoff (deterministic errors skip retry)
+- [x] Resumable transfers (FTP `REST`/`APPE`, SFTP offset)
+- [x] Live progress events (speed, ETA) via `transfer:update`
+- [x] Bandwidth limiting, changeable while transfers run
 - [ ] Post-transfer actions (notifications, sounds)
 
-### Phase 4 — Smart Sync 📋
-- [ ] `crates/sync` folder compare (size, mtime, checksum)
-- [ ] Diff preview (upload / download / delete / conflict)
-- [ ] Direction modes: bidirectional, one-way
-- [ ] Dry-run mode
+### Phase 4 — Smart Sync ✅
+- [x] `crates/sync` folder compare (size + mtime with tolerance)
+- [x] Diff preview (upload / download / delete / conflict)
+- [x] Direction modes: bidirectional, one-way
+- [x] Preview → confirm → execute (the preview is the dry run)
+- [ ] Checksum-based comparison
 - [ ] Saved sync profiles
 
-### Phase 5 — Power Features 🔬
-- [ ] Remote editing (edit remote → auto-upload on save)
+### Phase 5 — Power Features 🚧
+- [x] Remote editing (edit remote → auto-upload on save)
+- [x] Command Palette actions and navigation
 - [ ] Folder Compare & Diff Viewer
 - [ ] Remote Terminal & SSH sessions
 - [ ] Git status overlay
 - [ ] Spotlight-like global search across connections
-- [ ] Command Palette file navigation
+- [ ] SFTP host-key pinning (currently accept-any, dev-only)
+
 
 ### Phase 6 — Ecosystem 🔬
 - [ ] Cloud storage backends (S3, R2, Backblaze, Dropbox, Google Drive)
