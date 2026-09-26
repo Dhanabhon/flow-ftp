@@ -13,7 +13,9 @@
     remoteEditOpen
   } from '$lib/ipc';
   import { localDelete, localMkdir, localRename, mkdirRemote, renameRemote } from '$lib/ipc';
+  import { cn } from '$lib/utils';
   import type { TransferDirection } from '$lib/types';
+  import { browser } from '$app/environment';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import { IconAlert } from '$lib/components/icons';
@@ -49,6 +51,12 @@
   }
 
   // ── Live data wiring (Tauri only; browser dev stays on mocks) ─────────────
+
+  // Restore the pane split from the previous session.
+  if (browser) {
+    const saved = Number(localStorage.getItem('flowftp:pane-ratio'));
+    if (!Number.isNaN(saved) && saved > 0) app.setPaneRatio(saved);
+  }
 
   // Load saved connection profiles (browser dev keeps mocks).
   $effect(() => {
@@ -255,6 +263,52 @@
     beginDownloads(entries, targetDir);
   }
 
+  // ── Pane splitter ─────────────────────────────────────────────────────────
+
+  /** Width of the inspector column (w-72 = 288px) plus its border. */
+  const INSPECTOR_WIDTH = 289;
+  let paneRow = $state<HTMLDivElement | null>(null);
+  let draggingPane = $state(false);
+
+  function startPaneDrag(e: PointerEvent) {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    draggingPane = true;
+  }
+
+  function movePaneDrag(e: PointerEvent) {
+    if (!draggingPane || !paneRow) return;
+    const rect = paneRow.getBoundingClientRect();
+    const area = rect.width - INSPECTOR_WIDTH;
+    if (area <= 0) return;
+    app.setPaneRatio((e.clientX - rect.left) / area);
+  }
+
+  function endPaneDrag() {
+    if (!draggingPane) return;
+    draggingPane = false;
+    localStorage.setItem('flowftp:pane-ratio', String(app.paneRatio));
+  }
+
+  /** Double-click the splitter to restore the even split. */
+  function resetPaneSplit() {
+    app.setPaneRatio(0.5);
+    localStorage.setItem('flowftp:pane-ratio', '0.5');
+  }
+
+  function nudgePaneSplit(e: KeyboardEvent) {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      app.setPaneRatio(app.paneRatio - step);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      app.setPaneRatio(app.paneRatio + step);
+    } else if (e.key === 'Home' || e.key === 'Enter') {
+      e.preventDefault();
+      resetPaneSplit();
+    }
+  }
+
   // ── Navigation handlers ───────────────────────────────────────────────────
 
   /** Navigate the local pane; `..` goes up one level. */
@@ -405,7 +459,11 @@
           <TransferQueue expanded />
         </div>
       {:else}
-      <div class="flex min-h-0 flex-1">
+      <div class="flex min-h-0 flex-1" bind:this={paneRow}>
+        <div
+          class="flex min-h-0 min-w-0"
+          style="width: calc((100% - {INSPECTOR_WIDTH}px) * {app.paneRatio})"
+        >
         <FilePane
           side="local"
           title="Local"
@@ -423,6 +481,33 @@
           onDropRemoteEntries={handleDropRemoteEntries}
           error={app.errors.local}
         />
+        </div>
+        <!-- ARIA APG splitter pattern: a focusable separator with arrow-key
+             adjustment. svelte-check flags the tabindex; the role and value
+             attributes above are the documented pattern. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panes"
+          aria-valuenow={Math.round(app.paneRatio * 100)}
+          aria-valuemin="15"
+          aria-valuemax="85"
+          tabindex="0"
+          class={cn(
+            'group relative w-1.5 shrink-0 cursor-col-resize bg-transparent',
+            'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border',
+            'hover:before:bg-accent/60',
+            draggingPane && 'before:bg-accent'
+          )}
+          onpointerdown={startPaneDrag}
+          onpointermove={movePaneDrag}
+          onpointerup={endPaneDrag}
+          onpointercancel={endPaneDrag}
+          ondblclick={resetPaneSplit}
+          onkeydown={nudgePaneSplit}
+        ></div>
         <div class="flex min-w-0 flex-1" bind:this={remotePaneEl}>
         <FilePane
           side="remote"

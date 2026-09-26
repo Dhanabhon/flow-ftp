@@ -73,6 +73,13 @@ class AppState {
   transfers = $state<Transfer[]>(mockTransfers);
   /** Bumped after create/rename/delete so listing effects refetch. */
   refreshTick = $state(0);
+  /** Local pane share of the two-pane area (0.15-0.85); 0.5 = even split. */
+  paneRatio = $state(0.5);
+
+  /** Clamp and apply a new local-pane ratio. */
+  setPaneRatio(ratio: number) {
+    this.paneRatio = Math.min(0.85, Math.max(0.15, ratio));
+  }
   queueCollapsed = $state(false);
 
   get activeTransfers() {
