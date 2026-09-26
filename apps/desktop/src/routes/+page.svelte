@@ -446,7 +446,7 @@
 
 <svelte:window on:keydown={onKeydown} />
 
-<div class="flex h-screen w-screen flex-col overflow-hidden bg-bg">
+<div class="flex h-full w-full flex-col overflow-hidden bg-bg">
   <Header />
 
   <div class="flex min-h-0 flex-1">
