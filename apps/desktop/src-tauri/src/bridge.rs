@@ -10,9 +10,9 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use flow_core::{
-    ConnectionId, Credentials, CoreError, CoreResult, FilePath, Protocol, RemoteFile, RemoteFs,
+    ConnectionId, CoreError, CoreResult, Credentials, FilePath, Protocol, RemoteFile, RemoteFs,
 };
-use flow_protocols::{FtpsFs, FtpFs, HostKeyPolicy, SftpFs};
+use flow_protocols::{FtpFs, FtpsFs, HostKeyPolicy, SftpFs};
 
 /// Ceiling for a single remote operation. A stalled server (dead data
 /// connection, wedged control stream) surfaces as a timeout instead of a
@@ -55,7 +55,10 @@ impl ConnectionRegistry {
     pub async fn connect(&self, id: ConnectionId, creds: Credentials) -> CoreResult<()> {
         let mut adapter = build_adapter(creds.protocol);
         adapter.connect(&creds).await?;
-        self.live.lock().await.insert(id, LiveConnection { adapter, creds });
+        self.live
+            .lock()
+            .await
+            .insert(id, LiveConnection { adapter, creds });
         Ok(())
     }
 
@@ -73,12 +76,7 @@ impl ConnectionRegistry {
     /// UI can disconnect stale state freely. The goodbye is bounded: a dead
     /// socket must not hang the disconnect.
     pub async fn disconnect(&self, id: &ConnectionId) -> CoreResult<()> {
-        if let Some(mut live) = self
-            .live
-            .lock()
-            .await
-            .remove(id)
-        {
+        if let Some(mut live) = self.live.lock().await.remove(id) {
             let _ = tokio::time::timeout(Duration::from_secs(5), live.adapter.disconnect()).await;
         }
         Ok(())
@@ -88,8 +86,13 @@ impl ConnectionRegistry {
     pub async fn list(&self, id: &ConnectionId, path: FilePath) -> CoreResult<Vec<RemoteFile>> {
         // Owned args move into the boxed future so it borrows only the
         // adapter reference — see `locked`.
-        self.locked(id, move |fs| Box::pin(async move { fs.list(&path).await }))
-            .await
+        let mut entries = self
+            .locked(id, move |fs| Box::pin(async move { fs.list(&path).await }))
+            .await?;
+        // FTP/SFTP servers may report POSIX navigation entries as children;
+        // the IPC boundary adds one synthetic `..` row where appropriate.
+        entries.retain(|entry| !matches!(entry.name.as_str(), "." | ".."));
+        Ok(entries)
     }
 
     /// Stat a path on a live connection.
@@ -106,14 +109,18 @@ impl ConnectionRegistry {
 
     /// Rename/move a path on a live connection.
     pub async fn rename(&self, id: &ConnectionId, from: FilePath, to: FilePath) -> CoreResult<()> {
-        self.locked(id, move |fs| Box::pin(async move { fs.rename(&from, &to).await }))
-            .await
+        self.locked(id, move |fs| {
+            Box::pin(async move { fs.rename(&from, &to).await })
+        })
+        .await
     }
 
     /// Delete a file or empty directory on a live connection.
     pub async fn delete(&self, id: &ConnectionId, path: FilePath) -> CoreResult<()> {
-        self.locked(id, move |fs| Box::pin(async move { fs.delete(&path).await }))
-            .await
+        self.locked(id, move |fs| {
+            Box::pin(async move { fs.delete(&path).await })
+        })
+        .await
     }
 
     /// Lock the registry, fetch the connection, and await the operation
@@ -123,7 +130,9 @@ impl ConnectionRegistry {
     async fn locked<T>(
         &self,
         id: &ConnectionId,
-        operation: impl FnOnce(&mut dyn RemoteFs) -> Pin<Box<dyn Future<Output = CoreResult<T>> + Send + '_>>,
+        operation: impl FnOnce(
+            &mut dyn RemoteFs,
+        ) -> Pin<Box<dyn Future<Output = CoreResult<T>> + Send + '_>>,
     ) -> CoreResult<T> {
         let mut guard = self.live.lock().await;
         let live = guard
@@ -228,15 +237,27 @@ mod tests {
                 tokio::time::sleep(Duration::from_secs(600)).await;
             }
             self.listed.push(path.clone());
-            Ok(vec![RemoteFile {
-                name: "entry.txt".into(),
-                kind: flow_core::FileKind::File,
-                size: 12,
-                modified: 0,
-                permissions: None,
-                owner: None,
-                group: None,
-            }])
+            Ok(vec![
+                RemoteFile {
+                    name: ".".into(),
+                    kind: flow_core::FileKind::Directory,
+                    size: 0,
+                    modified: 0,
+                    permissions: None,
+                    owner: None,
+                    group: None,
+                },
+                RemoteFile::parent_entry(),
+                RemoteFile {
+                    name: "entry.txt".into(),
+                    kind: flow_core::FileKind::File,
+                    size: 12,
+                    modified: 0,
+                    permissions: None,
+                    owner: None,
+                    group: None,
+                },
+            ])
         }
         async fn stat(&mut self, _path: &FilePath) -> CoreResult<RemoteFile> {
             unreachable!()
@@ -277,7 +298,12 @@ mod tests {
                 },
                 "connection-failed",
             ),
-            (CoreError::AuthFailed { username: "u".into() }, "auth-failed"),
+            (
+                CoreError::AuthFailed {
+                    username: "u".into(),
+                },
+                "auth-failed",
+            ),
             (CoreError::NotFound("p".into()), "not-found"),
             (CoreError::Permission("p".into()), "permission"),
             (CoreError::Protocol("p".into()), "protocol"),
@@ -303,7 +329,10 @@ mod tests {
             username: "deploy".into(),
         });
         assert!(e.message.contains("deploy"));
-        assert!(e.message.contains("password"), "message should suggest a fix");
+        assert!(
+            e.message.contains("password"),
+            "message should suggest a fix"
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -331,7 +360,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_delegates_to_registered_adapter() {
+    async fn list_filters_server_navigation_entries() {
         let registry = ConnectionRegistry::default();
         let id = ConnectionId::new("mock-1");
         registry
@@ -373,7 +402,9 @@ mod tests {
     #[tokio::test]
     async fn list_on_unknown_id_fails_cleanly() {
         let registry = ConnectionRegistry::default();
-        let result = registry.list(&ConnectionId::new("missing"), FilePath::new("/")).await;
+        let result = registry
+            .list(&ConnectionId::new("missing"), FilePath::new("/"))
+            .await;
         assert!(matches!(result, Err(CoreError::Protocol(_))));
     }
 

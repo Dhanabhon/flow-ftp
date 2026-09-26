@@ -113,16 +113,19 @@
   width="xl"
 >
   <!-- Direction tabs -->
-  <div class="mb-3 flex items-center gap-1 rounded-lg border border-border bg-bg-panel p-1">
+  <div class="mb-3 flex items-center gap-1 rounded-lg border border-border-strong bg-bg-panel p-1">
     {#each [{ id: 'both', label: 'Both ways', icon: IconRefresh }, { id: 'local-to-remote', label: 'Local → Remote', icon: IconUpload }, { id: 'remote-to-local', label: 'Remote → Local', icon: IconDownload }] as opt (opt.id)}
       <button
         class={cn(
-          'flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors',
-          direction === opt.id ? 'bg-bg-active text-fg shadow-sm' : 'text-fg-muted hover:text-fg'
+          'flex flex-1 items-center justify-center gap-1.5 rounded-md border py-1.5 text-xs font-medium transition-colors',
+          direction === opt.id
+            ? 'border-accent/40 bg-bg-elevated text-fg shadow-sm'
+            : 'border-transparent text-fg-muted hover:bg-bg-hover hover:text-fg'
         )}
+        aria-pressed={direction === opt.id}
         onclick={() => (direction = opt.id as SyncDirection)}
       >
-        <opt.icon size={13} />
+        <opt.icon size={13} class={cn(direction === opt.id && 'text-accent-text')} />
         {opt.label}
       </button>
     {/each}

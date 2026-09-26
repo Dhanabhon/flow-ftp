@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 160" role="img" aria-labelledby="title">
+  <title id="title">FlowFTP logo, shared workspace concept</title>
+  <g transform="translate(10 16)">
+    <path d="M28 99V44C28 35 35 28 44 28H84" fill="none" stroke="#203250" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M100 44V84C100 93 93 100 84 100H44" fill="none" stroke="#2563EB" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="156" y="108" fill="#203250" font-family="Inter, SF Pro Display, Helvetica Neue, sans-serif" font-size="70" font-weight="650" letter-spacing="-3">FlowFTP</text>
+</svg>

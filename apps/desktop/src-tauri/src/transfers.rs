@@ -8,9 +8,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use flow_core::{
-    ConnectionId, Credentials, CoreResult, FilePath, TransferDirection, TransferId,
-};
+use flow_core::{ConnectionId, CoreResult, Credentials, FilePath, TransferDirection, TransferId};
 use flow_transfer::{
     Connector, RetryPolicy, TransferEngine, TransferEvent, TransferRecord, TransferSpec,
 };
@@ -59,15 +57,15 @@ struct AppConnector;
 #[async_trait::async_trait]
 impl Connector for AppConnector {
     async fn connect(&self, creds: &Credentials) -> CoreResult<Box<dyn flow_core::RemoteFs>> {
-        Ok(build_adapter(creds.protocol))
+        let mut adapter = build_adapter(creds.protocol);
+        adapter.connect(creds).await?;
+        Ok(adapter)
     }
 }
 
 /// Build the engine, wire its event stream to the webview, and start the
 /// worker pool. Call once from Tauri setup.
-pub fn start_engine(
-    app: AppHandle,
-) -> Arc<TransferEngine> {
+pub fn start_engine(app: AppHandle) -> Arc<TransferEngine> {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<TransferEvent>();
     let engine = Arc::new(TransferEngine::new(
         Arc::new(AppConnector),
@@ -119,8 +117,7 @@ pub async fn transfer_enqueue(
     let Some(creds) = cache.get(&connection_id) else {
         return Err(IpcError {
             code: "connection-failed".into(),
-            message: "That connection is no longer active. Connect again and retry."
-                .into(),
+            message: "That connection is no longer active. Connect again and retry.".into(),
         });
     };
 
@@ -164,10 +161,7 @@ pub async fn transfer_pause(
     engine: State<'_, Arc<TransferEngine>>,
     id: String,
 ) -> Result<(), IpcError> {
-    engine
-        .pause(&TransferId::new(id))
-        .await
-        .map_err(ipc_error)
+    engine.pause(&TransferId::new(id)).await.map_err(ipc_error)
 }
 
 /// Resume a paused transfer from its byte offset.
@@ -176,10 +170,7 @@ pub async fn transfer_resume(
     engine: State<'_, Arc<TransferEngine>>,
     id: String,
 ) -> Result<(), IpcError> {
-    engine
-        .resume(&TransferId::new(id))
-        .await
-        .map_err(ipc_error)
+    engine.resume(&TransferId::new(id)).await.map_err(ipc_error)
 }
 
 /// Cancel a transfer.
@@ -188,10 +179,7 @@ pub async fn transfer_cancel(
     engine: State<'_, Arc<TransferEngine>>,
     id: String,
 ) -> Result<(), IpcError> {
-    engine
-        .cancel(&TransferId::new(id))
-        .await
-        .map_err(ipc_error)
+    engine.cancel(&TransferId::new(id)).await.map_err(ipc_error)
 }
 
 /// Clear completed/failed/canceled records from the queue list.
@@ -201,4 +189,75 @@ pub async fn transfer_clear_finished(
 ) -> Result<(), IpcError> {
     engine.clear_finished().await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flow_core::Protocol;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    #[tokio::test]
+    async fn app_connector_returns_a_connected_ftp_adapter() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (read, mut write) = stream.into_split();
+            let mut reader = BufReader::new(read);
+            let mut command = String::new();
+
+            write.write_all(b"220 Test FTP ready\r\n").await.unwrap();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "USER test-user");
+            write.write_all(b"331 Password required\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "PASS test-password");
+            write.write_all(b"230 Login successful\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "CWD /");
+            write.write_all(b"250 Directory changed\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "PWD");
+            write
+                .write_all(b"257 \"/\" is current directory\r\n")
+                .await
+                .unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "TYPE I");
+            write.write_all(b"200 Type set to I\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "SIZE README.md");
+            write.write_all(b"213 12\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "MDTM README.md");
+            write.write_all(b"213 20260926123456\r\n").await.unwrap();
+
+            command.clear();
+            reader.read_line(&mut command).await.unwrap();
+            assert_eq!(command.trim_end(), "QUIT");
+            write.write_all(b"221 Goodbye\r\n").await.unwrap();
+        });
+
+        let creds = Credentials::new("127.0.0.1", "test-user", Protocol::Ftp)
+            .with_port(port)
+            .with_password("test-password");
+        let mut adapter = AppConnector.connect(&creds).await.unwrap();
+        let file = adapter.stat(&FilePath::new("/README.md")).await.unwrap();
+        assert_eq!(file.size, 12);
+        adapter.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
 }

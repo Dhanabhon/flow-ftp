@@ -20,7 +20,7 @@
   import { browser } from '$app/environment';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
-  import { IconAlert } from '$lib/components/icons';
+import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
   import Header from '$lib/components/shell/Header.svelte';
   import Sidebar from '$lib/components/shell/Sidebar.svelte';
   import FilePane from '$lib/components/shell/FilePane.svelte';
@@ -32,10 +32,34 @@
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
   import QuitConfirmDialog from '$lib/components/shell/QuitConfirmDialog.svelte';
 
+  let activeFilePane: 'local' | 'remote' | null = null;
+
+  function setActiveFilePane(target: EventTarget | null) {
+    const pane = target instanceof Element
+      ? target.closest<HTMLElement>('[data-file-pane]')?.dataset.filePane
+      : undefined;
+    activeFilePane = pane === 'local' || pane === 'remote' ? pane : null;
+  }
+
+  function selectAllInActivePane() {
+    if (!activeFilePane) return;
+    const files = activeFilePane === 'local' ? app.localFiles : app.remoteFiles;
+    const names = files
+      .filter((file) => file.name !== '..' && (app.showHidden || !file.name.startsWith('.')))
+      .map((file) => file.name);
+    if (activeFilePane === 'local') app.localSelected = new Set(names);
+    else app.remoteSelected = new Set(names);
+  }
+
   // Global keyboard shortcuts — every binding advertised in the UI exists.
   function onKeydown(e: KeyboardEvent) {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key === '1') {
+    if (mod && e.key.toLowerCase() === 'a') {
+      const target = e.target;
+      if (!activeFilePane || (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]'))) return;
+      e.preventDefault();
+      selectAllInActivePane();
+    } else if (mod && e.key === '1') {
       e.preventDefault();
       app.setView('connections');
     } else if (mod && e.key === '2') {
@@ -87,17 +111,32 @@
       .catch(() => {});
   }
 
+  let localListSeq = 0;
+
+  async function loadLocal(path = app.localPath) {
+    const seq = ++localListSeq;
+    app.localLoading = true;
+    try {
+      const files = await listLocal(path);
+      if (seq !== localListSeq) return;
+      app.localFiles = files;
+      app.errors.local = null;
+    } catch (e) {
+      if (seq !== localListSeq) return;
+      app.errors.local = e instanceof Error ? e.message : String(e);
+    } finally {
+      if (seq === localListSeq) app.localLoading = false;
+    }
+  }
+
   // Local listing follows the local path (and refreshes after mutations).
   $effect(() => {
     if (!IS_TAURI) return;
     const path = app.localPath;
     void app.refreshTick;
-    listLocal(path)
-      .then((files) => {
-        app.localFiles = files;
-        app.errors.local = null;
-      })
-      .catch((e: Error) => (app.errors.local = e.message));
+    untrack(() => {
+      void loadLocal(path);
+    });
   });
 
   // Remote listing is EXPLICIT: navigate lists first and only commits the
@@ -181,8 +220,8 @@
   }
 
   // Connection changes: fresh session starts at root with a clean slate;
-  // disconnected clears. Stale rows from a previous session must not linger
-  // while the first listing travels.
+  // disconnected clears the remote pane and breadcrumb. Stale rows from a
+  // previous session must not linger while the first listing travels.
   $effect(() => {
     if (!IS_TAURI) return;
     const connectionId = app.activeConnectionId;
@@ -190,9 +229,11 @@
     app.remoteSelected = new Set();
     app.errors.remote = null;
     app.remoteLoading = false;
-    if (app.inspector?.side === 'remote') app.inspector = null;
-    if (!connectionId) return;
+    untrack(() => {
+      if (app.inspector?.side === 'remote') app.inspector = null;
+    });
     app.remotePath = '/';
+    if (!connectionId) return;
     untrack(() => {
       void loadRemote();
     });
@@ -353,6 +394,135 @@
     targetDir: string
   ) {
     beginDownloads(entries, targetDir);
+  }
+
+  // Use pointer events for transfers between the two panes. Tauri's macOS
+  // native file-drop destination also claims WebKit drag sessions, so HTML
+  // DataTransfer drops do not reliably reach the pane handlers.
+  type InternalDropTarget = {
+    side: 'local' | 'remote';
+    folder: string | null;
+    targetDir: string;
+  };
+  let internalFileDrag = $state<{
+    pointerId: number;
+    side: 'local' | 'remote';
+    names: string[];
+    startX: number;
+    startY: number;
+    pointerX: number;
+    pointerY: number;
+    active: boolean;
+  } | null>(null);
+  let internalDropTarget = $state<InternalDropTarget | null>(null);
+  let suppressClickAfterFileDrag = false;
+
+  function startInternalFileDrag(e: PointerEvent) {
+    if (!e.isPrimary || e.button !== 0) return;
+    const entry = e.target instanceof Element
+      ? e.target.closest<HTMLElement>('[data-drag-entry]')
+      : null;
+    const pane = entry?.closest<HTMLElement>('[data-file-pane]');
+    const name = entry?.dataset.dragEntry;
+    const side = pane?.dataset.filePane;
+    if (!entry || !name || (side !== 'local' && side !== 'remote')) return;
+    if (side === 'remote' && !app.activeConnectionId) return;
+
+    const sourceFiles = side === 'local' ? app.localFiles : app.remoteFiles;
+    const selected = side === 'local' ? app.localSelected : app.remoteSelected;
+    const fileNames = new Set(sourceFiles.filter((file) => file.kind !== 'directory').map((file) => file.name));
+    const names = selected.has(name)
+      ? [...selected].filter((selectedName) => fileNames.has(selectedName))
+      : [name];
+    if (names.length === 0) return;
+
+    internalFileDrag = {
+      pointerId: e.pointerId,
+      side,
+      names,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      active: false
+    };
+  }
+
+  function findInternalDropTarget(
+    clientX: number,
+    clientY: number,
+    sourceSide: 'local' | 'remote'
+  ): InternalDropTarget | null {
+    const hovered = document.elementFromPoint(clientX, clientY);
+    const pane = hovered?.closest<HTMLElement>('[data-file-pane]');
+    const side = pane?.dataset.filePane;
+    if (!pane || (side !== 'local' && side !== 'remote') || side === sourceSide) return null;
+    if ((side === 'remote' || sourceSide === 'remote') && !app.activeConnectionId) return null;
+
+    const folderRow = hovered?.closest<HTMLElement>('[data-drop-folder]');
+    const folder = folderRow?.dataset.dropFolder ?? null;
+    const currentPath = pane.dataset.filePath ?? '/';
+    return {
+      side,
+      folder,
+      targetDir: folder ? joinPath(currentPath, folder) : currentPath
+    };
+  }
+
+  function moveInternalFileDrag(e: PointerEvent) {
+    const drag = internalFileDrag;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    let activeDrag = drag;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 6) return;
+      activeDrag = { ...drag, active: true };
+    }
+    e.preventDefault();
+    activeDrag = { ...activeDrag, pointerX: e.clientX, pointerY: e.clientY };
+    internalFileDrag = activeDrag;
+    const target = findInternalDropTarget(e.clientX, e.clientY, activeDrag.side);
+    internalDropTarget = target;
+  }
+
+  function finishInternalFileDrag(e: PointerEvent) {
+    const drag = internalFileDrag;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    internalFileDrag = null;
+    internalDropTarget = null;
+    if (!drag.active) return;
+
+    suppressClickAfterFileDrag = true;
+    setTimeout(() => (suppressClickAfterFileDrag = false), 0);
+    const target = findInternalDropTarget(e.clientX, e.clientY, drag.side);
+    if (!target) return;
+
+    if (drag.side === 'local') {
+      handleDropLocalFiles(
+        drag.names.map((fileName) => ({
+          fileName,
+          localPath: joinPath(app.localPath, fileName)
+        })),
+        target.targetDir
+      );
+    } else {
+      handleDropRemoteEntries(
+        drag.names.map((name) => ({ name, isDir: false })),
+        target.targetDir
+      );
+    }
+  }
+
+  function cancelInternalFileDrag(e: PointerEvent) {
+    if (internalFileDrag?.pointerId !== e.pointerId) return;
+    internalFileDrag = null;
+    internalDropTarget = null;
+  }
+
+  function suppressDraggedFileClick(e: MouseEvent) {
+    if (!suppressClickAfterFileDrag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    suppressClickAfterFileDrag = false;
   }
 
   // ── Pane splitter ─────────────────────────────────────────────────────────
@@ -525,9 +695,20 @@
   }
 </script>
 
-<svelte:window on:keydown={onKeydown} />
+<svelte:window
+  onkeydown={onKeydown}
+  onpointerdown={(e) => {
+    setActiveFilePane(e.target);
+    startInternalFileDrag(e);
+  }}
+  onfocusin={(e) => setActiveFilePane(e.target)}
+  onpointermove={moveInternalFileDrag}
+  onpointerup={finishInternalFileDrag}
+  onpointercancel={cancelInternalFileDrag}
+  onclickcapture={suppressDraggedFileClick}
+/>
 
-<div class="flex h-full w-full flex-col overflow-hidden bg-bg">
+<div class="flex h-full w-full flex-col overflow-hidden bg-bg" class:flowftp-file-dragging={internalFileDrag?.active}>
   <Header />
 
   <div class="flex min-h-0 flex-1">
@@ -540,7 +721,10 @@
           <TransferQueue expanded />
         </div>
       {:else}
-      <div class="flex min-h-0 flex-1" bind:this={paneRow}>
+      <div
+        class="flex min-h-0 flex-1"
+        bind:this={paneRow}
+      >
         <div
           class="flex min-h-0"
           style="flex: 0 1 calc((100% - {INSPECTOR_WIDTH + 6}px) * {app.paneRatio}); min-width: 300px"
@@ -553,13 +737,15 @@
           selected={app.localSelected}
           onSelect={app.selectLocal.bind(app)}
           showHidden={app.showHidden}
+          loading={app.localLoading}
           onNavigate={navigateLocal}
           onNavigateTo={(path) => (app.localPath = path)}
+          onRefresh={() => void loadLocal()}
           onUpload={handleUpload}
           onCreateFolder={(name) => handleCreateFolder('local', name)}
           onRename={(from, to) => handleRename('local', from, to)}
           onDelete={(names) => handleDelete('local', names)}
-          onDropRemoteEntries={handleDropRemoteEntries}
+          internalDropTarget={internalDropTarget}
           error={app.errors.local}
         />
         </div>
@@ -602,6 +788,7 @@
           connectionName={app.activeConnection?.name}
           onNavigate={navigateRemote}
           onNavigateTo={(path) => void goRemote(path)}
+          onRefresh={() => void loadRemote()}
           onDownload={handleDownload}
           onEdit={handleEdit}
           disconnected={!app.activeConnectionId}
@@ -612,7 +799,7 @@
           onCreateFolder={(name) => handleCreateFolder('remote', name)}
           onRename={(from, to) => handleRename('remote', from, to)}
           onDelete={(names) => handleDelete('remote', names)}
-          onDropLocalFiles={handleDropLocalFiles}
+          internalDropTarget={internalDropTarget}
           onDisconnect={() => app.disconnectActive()}
           externalDragOver={externalDragOver}
           error={app.errors.remote}
@@ -626,6 +813,37 @@
     </main>
   </div>
 </div>
+
+{#if internalFileDrag?.active}
+  <div
+    class="pointer-events-none fixed z-[100] flex max-w-72 items-center gap-2.5 rounded-xl border border-accent/40 bg-bg-elevated px-3 py-2 shadow-lg ring-1 ring-accent/15"
+    style={`left: ${Math.max(8, Math.min(internalFileDrag.pointerX + 16, window.innerWidth - 288))}px; top: ${Math.max(8, Math.min(internalFileDrag.pointerY + 16, window.innerHeight - 76))}px`}
+    aria-hidden="true"
+  >
+    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-solid text-accent-fg shadow-sm">
+      {#if internalFileDrag.side === 'local'}
+        <IconUpload size={15} />
+      {:else}
+        <IconDownload size={15} />
+      {/if}
+    </span>
+    <span class="min-w-0 flex-1">
+      <span class="block text-[10px] font-semibold uppercase tracking-wider text-accent-text">
+        {internalFileDrag.side === 'local' ? 'Upload' : 'Download'} · Copy
+      </span>
+      <span class="block max-w-52 truncate text-xs font-medium text-fg">
+        {internalFileDrag.names.length === 1
+          ? internalFileDrag.names[0]
+          : `${internalFileDrag.names.length} files`}
+      </span>
+      <span class="block max-w-52 truncate text-[10px] text-fg-subtle">
+        {internalDropTarget
+          ? `Drop in ${internalDropTarget.targetDir}`
+          : `Drop in ${internalFileDrag.side === 'local' ? 'Remote' : 'Local'} pane`}
+      </span>
+    </span>
+  </div>
+{/if}
 
 <!-- Global overlays -->
 <CommandPalette />

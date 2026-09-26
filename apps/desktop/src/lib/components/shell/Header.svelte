@@ -46,9 +46,11 @@
 
   <!-- Brand -->
   <div class="relative z-10 flex items-center gap-2 select-none">
-    <div class="grid h-6 w-6 place-items-center rounded-md bg-accent-solid text-accent-fg shadow-sm">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12h4l3-9 4 18 3-9h4"/>
+    <div class="grid h-6 w-6 place-items-center text-fg">
+      <svg width="24" height="24" viewBox="0 0 128 128" fill="none" aria-hidden="true">
+        <path d="M14 40C30 22 47 22 63 40S96 58 114 40" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
+        <path d="M14 64C30 46 47 46 63 64S96 82 114 64" stroke="#2563EB" stroke-width="14" stroke-linecap="round"/>
+        <path d="M14 88C30 70 47 70 63 88S96 106 114 88" stroke="#72C7FA" stroke-width="14" stroke-linecap="round"/>
       </svg>
     </div>
     <span class="text-sm font-semibold tracking-tight">FlowFTP</span>

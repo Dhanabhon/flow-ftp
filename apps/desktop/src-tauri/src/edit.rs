@@ -117,14 +117,14 @@ pub async fn remote_edit_open(
     // model): no contention with the interactive session.
     tokio::fs::create_dir_all(&local_dir)
         .await
-        .map_err(|e| IpcError { code: "io".into(), message: e.to_string() })?;
+        .map_err(|e| IpcError {
+            code: "io".into(),
+            message: e.to_string(),
+        })?;
     let download_started = Instant::now();
     {
         let mut adapter = build_adapter(creds.protocol);
-        adapter
-            .connect(&creds)
-            .await
-            .map_err(ipc_error)?;
+        adapter.connect(&creds).await.map_err(ipc_error)?;
         let downloaded = adapter
             .download(
                 flow_core::TransferId::new("edit-open"),
@@ -153,7 +153,10 @@ pub async fn remote_edit_open(
         local_path.clone(),
         download_started,
     )
-    .map_err(|e| IpcError { code: "io".into(), message: e.to_string() })?;
+    .map_err(|e| IpcError {
+        code: "io".into(),
+        message: e.to_string(),
+    })?;
 
     Ok(local_path.to_string_lossy().into_owned())
 }
@@ -223,7 +226,10 @@ fn start_watcher(
 async fn upload_edit(app: AppHandle, local_path: PathBuf) {
     let (connection_id, remote_path, file_name) = {
         let sessions = app.state::<EditSessions>();
-        let guard = sessions.sessions.lock().expect("edit sessions lock poisoned");
+        let guard = sessions
+            .sessions
+            .lock()
+            .expect("edit sessions lock poisoned");
         let Some(session) = guard.get(&local_path) else {
             return; // session dropped while we were debouncing
         };

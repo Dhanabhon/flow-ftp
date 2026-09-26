@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">FlowFTP shared workspace mark</title>
+  <path d="M28 99V44C28 35 35 28 44 28H84" fill="none" stroke="#203250" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M100 44V84C100 93 93 100 84 100H44" fill="none" stroke="#2563EB" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

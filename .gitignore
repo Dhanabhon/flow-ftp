@@ -157,6 +157,18 @@ xcuserdata/
 notarization_history.json
 
 # ─────────────────────────────────────────────
+# AI Agent Skills (local tooling, not project source)
+# ─────────────────────────────────────────────
+.agents/skills/
+.claude/skills/
+.codex/skills/
+.cursor/skills/
+.gemini/skills/
+.github/skills/
+.opencode/skills/
+.windsurf/skills/
+
+# ─────────────────────────────────────────────
 # Misc
 # ─────────────────────────────────────────────
 tmp/

@@ -33,7 +33,12 @@ pub fn run() {
                 "About FlowFTP",
                 Some(AboutMetadata {
                     name: Some("FlowFTP".into()),
-                    version: Some(app.package_info().version.to_string()),
+                    version: Some(env!("CARGO_PKG_VERSION").into()),
+                    short_version: Some(String::new()),
+                    credits: Some("Powered by TOMERA Co., Ltd.".into()),
+                    icon: Some(tauri::image::Image::from_bytes(include_bytes!(
+                        "../icons/icon.png"
+                    ))?),
                     ..Default::default()
                 }),
             )

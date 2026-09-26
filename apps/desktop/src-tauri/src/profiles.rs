@@ -51,7 +51,10 @@ impl ProfileStore {
     }
 
     fn snapshot(&self) -> Vec<Connection> {
-        self.profiles.lock().expect("profiles lock poisoned").clone()
+        self.profiles
+            .lock()
+            .expect("profiles lock poisoned")
+            .clone()
     }
 
     /// Upsert a profile (matched by id) and persist. The incoming status is
@@ -103,7 +106,6 @@ pub fn profile_delete(
     store.delete(&ConnectionId::new(id))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,7 +127,8 @@ mod tests {
     }
 
     fn temp_store(tag: &str) -> (ProfileStore, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("flowftp-profiles-{}-{tag}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("flowftp-profiles-{}-{tag}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("create temp dir failed");
         (ProfileStore::load(&dir), dir)
     }
@@ -134,7 +137,9 @@ mod tests {
     fn upsert_then_reload_round_trips() {
         let (store, dir) = temp_store("round-trip");
 
-        let list = store.upsert(profile("c1", "Prod", true)).expect("save failed");
+        let list = store
+            .upsert(profile("c1", "Prod", true))
+            .expect("save failed");
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].name, "Prod");
         // Status normalizes: liveness is session state, not profile data.
@@ -152,11 +157,15 @@ mod tests {
     #[test]
     fn save_upserts_by_id_instead_of_duplicating() {
         let (store, dir) = temp_store("upsert");
-        let first = store.upsert(profile("c1", "First", false)).expect("save failed");
+        let first = store
+            .upsert(profile("c1", "First", false))
+            .expect("save failed");
         assert_eq!(first.len(), 1);
 
         // Same id, new name -> replace, not duplicate.
-        let second = store.upsert(profile("c1", "Renamed", true)).expect("save failed");
+        let second = store
+            .upsert(profile("c1", "Renamed", true))
+            .expect("save failed");
         assert_eq!(second.len(), 1);
         assert_eq!(second[0].name, "Renamed");
         assert!(second[0].favorite);
@@ -169,7 +178,9 @@ mod tests {
         let _ = store.upsert(profile("c1", "A", false));
         let _ = store.upsert(profile("c2", "B", false));
 
-        let mut after = store.delete(&ConnectionId::new("c1")).expect("delete failed");
+        let mut after = store
+            .delete(&ConnectionId::new("c1"))
+            .expect("delete failed");
         assert_eq!(after.len(), 1);
         assert_eq!(after.pop().unwrap().id, ConnectionId::new("c2"));
 

@@ -221,24 +221,21 @@ pub fn local_home() -> Result<String, IpcError> {
 #[tauri::command]
 pub async fn local_list(path: String) -> Result<Vec<RemoteFile>, IpcError> {
     let mut entries = Vec::new();
-    let mut reader = tokio::fs::read_dir(&path)
-        .await
-        .map_err(|e| IpcError {
-            code: if e.kind() == std::io::ErrorKind::NotFound {
-                "not-found".into()
-            } else if e.kind() == std::io::ErrorKind::PermissionDenied {
-                "permission".into()
-            } else {
-                "io".into()
-            },
-            message: format!("Could not read {}: {}", display_path(&path), e),
-        })?;
+    let mut reader = tokio::fs::read_dir(&path).await.map_err(|e| IpcError {
+        code: if e.kind() == std::io::ErrorKind::NotFound {
+            "not-found".into()
+        } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+            "permission".into()
+        } else {
+            "io".into()
+        },
+        message: format!("Could not read {}: {}", display_path(&path), e),
+    })?;
 
-    while let Some(entry) = reader
-        .next_entry()
-        .await
-        .map_err(|e| IpcError { code: "io".into(), message: e.to_string() })?
-    {
+    while let Some(entry) = reader.next_entry().await.map_err(|e| IpcError {
+        code: "io".into(),
+        message: e.to_string(),
+    })? {
         let Ok(meta) = entry.metadata().await else {
             continue; // vanished between readdir and stat — skip
         };
@@ -365,7 +362,11 @@ pub async fn local_read_text(path: String) -> Result<Option<TextPreview>, IpcErr
         .await
         .map_err(|e| local_io_error(&path, e))?;
     let truncated = bytes.len() > MAX_READ;
-    let cut = if truncated { &bytes[..MAX_READ] } else { &bytes[..] };
+    let cut = if truncated {
+        &bytes[..MAX_READ]
+    } else {
+        &bytes[..]
+    };
     Ok(Some(TextPreview {
         content: String::from_utf8_lossy(cut).into_owned(),
         truncated,

@@ -9,20 +9,20 @@
 //! never hang the preview.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::path::Path as StdPath;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use flow_core::{
     format_permissions, ConnectionId, CoreError, CoreResult, FilePath, RemoteFile, SyncDiff,
     SyncDirection,
 };
+use flow_sync::{compare, is_executable, CompareOptions};
 use flow_transfer::TransferEngine;
-use walkdir::WalkDir;
-use flow_sync::{is_executable, compare, CompareOptions};
 use serde::Deserialize;
 use tauri::State;
+use walkdir::WalkDir;
 
 use crate::bridge::{ipc_error, ConnectionRegistry, IpcError};
 use crate::transfers::CredentialCache;
@@ -35,10 +35,7 @@ const MAX_ENTRIES: usize = 10_000;
 /// Walk a local directory tree into the snapshot shape compare() expects.
 fn walk_local_sync(root: &StdPath) -> CoreResult<HashMap<String, RemoteFile>> {
     let mut out = HashMap::new();
-    for entry in WalkDir::new(root)
-        .max_depth(MAX_DEPTH)
-        .follow_links(false)
-    {
+    for entry in WalkDir::new(root).max_depth(MAX_DEPTH).follow_links(false) {
         let entry = entry.map_err(|e| CoreError::Io(e.to_string()))?;
         if entry.depth() == 0 {
             continue; // the root itself is not an entry
@@ -102,7 +99,9 @@ async fn walk_remote(
     if out.len() >= MAX_ENTRIES {
         return Ok(());
     }
-    let entries = registry.list(id, FilePath::new(dir.as_str().to_string())).await?;
+    let entries = registry
+        .list(id, FilePath::new(dir.as_str().to_string()))
+        .await?;
     for entry in entries {
         let name = entry.name.clone();
         if name == ".." {
@@ -218,10 +217,8 @@ pub async fn sync_execute(
         })
         .collect();
     for parent in &ancestors {
-        if let Err(e) = tokio::fs::create_dir_all(
-            StdPath::new(&request.local_root).join(parent),
-        )
-        .await
+        if let Err(e) =
+            tokio::fs::create_dir_all(StdPath::new(&request.local_root).join(parent)).await
         {
             return Err(IpcError {
                 code: "io".into(),
@@ -257,7 +254,12 @@ pub async fn sync_execute(
             }
         }
 
-        let file_name = diff.path.rsplit('/').next().unwrap_or(&diff.path).to_string();
+        let file_name = diff
+            .path
+            .rsplit('/')
+            .next()
+            .unwrap_or(&diff.path)
+            .to_string();
         let id = flow_core::TransferId::new(format!("sync-{}", next_sync_seq()));
         let spec = flow_transfer::TransferSpec {
             connection_id: connection_id.clone(),

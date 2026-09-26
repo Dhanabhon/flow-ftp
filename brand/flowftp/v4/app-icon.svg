@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">FlowFTP shared workspace app icon</title>
+  <rect width="1024" height="1024" rx="224" fill="#111315"/>
+  <g transform="translate(96 96) scale(6.5)">
+    <path d="M28 99V44C28 35 35 28 44 28H84" fill="none" stroke="#F6F7F8" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M100 44V84C100 93 93 100 84 100H44" fill="none" stroke="#60A5FA" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

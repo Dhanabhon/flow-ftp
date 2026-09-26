@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">FlowFTP Stream Portal app icon</title>
+  <defs>
+    <linearGradient id="stream" x1="0" y1="0" x2="0" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#56BEFA"/>
+      <stop offset="1" stop-color="#1264EF"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="1008" height="1008" rx="216" fill="#F9FBFD" stroke="#E3E9F2" stroke-width="8"/>
+  <g transform="translate(112 192) scale(5)">
+    <path d="M31 111C21 111 16 103 18 93L29 40C33 20 45 11 65 11H117L107 34H66C57 34 53 38 51 47L41 99C39 107 36 111 31 111Z" fill="url(#stream)"/>
+    <path d="M45 70C50 58 59 54 74 54H92" fill="none" stroke="#48B6F8" stroke-width="17" stroke-linecap="round"/>
+    <path d="M42 99C53 85 64 84 79 84H119" fill="none" stroke="#1264EF" stroke-width="17" stroke-linecap="round"/>
+    <path d="M119 60H138C144 60 148 64 148 70V99C148 105 144 109 138 109H119" fill="none" stroke="#203250" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

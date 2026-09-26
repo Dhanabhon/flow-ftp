@@ -13,7 +13,6 @@
     IconTrash,
     IconUnplug,
     IconServer,
-    IconPlus,
     IconWifi,
     IconWifiOff,
     IconAlert,
@@ -72,8 +71,12 @@
   }
 
   async function toggleFavorite(conn: Connection) {
+    const favorite = !conn.favorite;
     try {
-      app.connections = await profileSave({ ...conn, favorite: !conn.favorite });
+      await profileSave({ ...conn, favorite });
+      app.connections = app.connections.map((current) =>
+        current.id === conn.id ? { ...current, favorite } : current
+      );
     } catch (e) {
       app.notify('danger', 'Could not update favorite', e instanceof Error ? e.message : String(e));
     }
@@ -147,13 +150,10 @@
   <div class="mx-3 my-1 h-px bg-border"></div>
 
   <!-- Favorites -->
-  <div class="flex items-center justify-between px-3 pb-1 pt-2">
+  <div class="flex items-center px-3 pb-1 pt-2">
     <span class="text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
       Favorites
     </span>
-    <button class="text-fg-subtle transition-colors hover:text-fg">
-      <IconPlus size={12} />
-    </button>
   </div>
   <div class="flex flex-col gap-0.5 px-2">
     {#each favorites as conn (conn.id)}
@@ -208,13 +208,33 @@
   </div>
   <div class="flex flex-col gap-0.5 px-2">
     {#each recent as conn (conn.id)}
-      <button
-        class="group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
-        onclick={() => openConnection(conn)}
+      <div
+        class="group flex items-center gap-1 rounded-md px-1.5 py-1 text-sm text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg"
       >
-        <IconClock size={14} class="shrink-0 text-fg-faint" />
-        <span class="flex-1 truncate">{conn.name}</span>
-      </button>
+        <button
+          type="button"
+          class="flex min-w-0 flex-1 items-center gap-2.5 rounded px-1 text-left"
+          onclick={() => openConnection(conn)}
+        >
+          <IconClock size={14} class="shrink-0 text-fg-faint" />
+          <span class="truncate">{conn.name}</span>
+        </button>
+        <button
+          type="button"
+          class="rounded p-1 transition-colors hover:text-warning"
+          aria-label={conn.favorite ? `Remove ${conn.name} from favorites` : `Add ${conn.name} to favorites`}
+          title={conn.favorite ? 'Remove from favorites' : 'Add to favorites'}
+          onclick={() => void toggleFavorite(conn)}
+        >
+          <IconStar
+            size={13}
+            class={cn(
+              'shrink-0 transition-colors',
+              conn.favorite ? 'fill-current text-warning' : 'text-fg-faint group-hover:text-warning'
+            )}
+          />
+        </button>
+      </div>
     {/each}
   </div>
 

@@ -102,6 +102,21 @@
     cancelTransfer(id).catch(() => {});
   }
 
+  async function onClearFinished() {
+    try {
+      await clearFinishedTransfers();
+      app.transfers = app.transfers.filter(
+        (transfer) => transfer.status === 'active' || transfer.status === 'queued' || transfer.status === 'paused'
+      );
+    } catch (error) {
+      app.notify(
+        'danger',
+        'Could not clear finished transfers',
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
   function pct(t: (typeof transfers)[number]) {
     if (t.size === 0) return 0;
     return (t.transferred / t.size) * 100;
@@ -175,7 +190,7 @@
         class="rounded p-1.5 text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"
         title="Clear finished transfers"
         aria-label="Clear finished transfers"
-        onclick={() => clearFinishedTransfers().catch(() => {})}
+        onclick={onClearFinished}
       >
         <IconTrash size={13} />
       </button>

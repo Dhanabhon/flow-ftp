@@ -21,6 +21,7 @@ use suppaftp::tokio::{
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use suppaftp::list::ListParser;
+use suppaftp::types::FileType as FtpFileType;
 use suppaftp::FtpError;
 
 use crate::error::map_ftp_error;
@@ -92,6 +93,16 @@ async fn enter_dir<T: TokioTlsStream + Send>(
     Ok(())
 }
 
+/// Select binary transfer mode for file metadata and contents.
+async fn use_binary_type<T: TokioTlsStream + Send>(
+    stream: &mut ImplAsyncFtpStream<T>,
+) -> CoreResult<()> {
+    stream
+        .transfer_type(FtpFileType::Image)
+        .await
+        .map_err(map_ftp_error)
+}
+
 /// List a directory. Prefers MLSD (RFC 3659, machine-readable) and falls back
 /// to the classic LIST parser for servers without it. The directory is
 /// entered with CWD first (see [`enter_dir`]) and listed relatively; a LIST
@@ -152,6 +163,7 @@ async fn stat_path<T: TokioTlsStream + Send>(
 ) -> CoreResult<RemoteFile> {
     let name = path.name().to_string();
     enter_dir(stream, &path.parent()).await?;
+    use_binary_type(stream).await?;
     let size = stream
         .size(name.as_str())
         .await
@@ -200,6 +212,7 @@ async fn open_read_stream<T: TokioTlsStream + Send + 'static>(
 ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
     let name = remote.name().to_string();
     enter_dir(stream, &remote.parent()).await?;
+    use_binary_type(stream).await?;
     if offset > 0 {
         stream
             .resume_transfer(offset as usize)
@@ -223,6 +236,7 @@ async fn open_write_stream<T: TokioTlsStream + Send + 'static>(
 ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
     let name = remote.name().to_string();
     enter_dir(stream, &remote.parent()).await?;
+    use_binary_type(stream).await?;
     let data = if offset > 0 {
         stream.append_with_stream(name.as_str()).await
     } else {
