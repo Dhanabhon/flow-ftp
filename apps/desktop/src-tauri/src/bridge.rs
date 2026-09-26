@@ -53,6 +53,16 @@ impl ConnectionRegistry {
         Ok(())
     }
 
+    /// How many sessions are live right now, for the quit confirmation.
+    /// A held lock means an operation is mid-flight, which itself implies a
+    /// live session.
+    pub fn connected_count_now(&self) -> usize {
+        match self.live.try_lock() {
+            Ok(guard) => guard.len(),
+            Err(_) => 1,
+        }
+    }
+
     /// Tear down and remove a session. Unknown ids succeed silently so the
     /// UI can disconnect stale state freely.
     pub async fn disconnect(&self, id: &ConnectionId) -> CoreResult<()> {
@@ -310,6 +320,22 @@ mod tests {
         let registry = ConnectionRegistry::default();
         let result = registry.list(&ConnectionId::new("missing"), FilePath::new("/")).await;
         assert!(matches!(result, Err(CoreError::Protocol(_))));
+    }
+
+    #[tokio::test]
+    async fn connected_count_reflects_live_sessions() {
+        let registry = ConnectionRegistry::default();
+        assert_eq!(registry.connected_count_now(), 0);
+        registry
+            .insert_for_test(
+                ConnectionId::new("cc1"),
+                Box::new(MockFs {
+                    disconnected: false,
+                    listed: Vec::new(),
+                }),
+            )
+            .await;
+        assert_eq!(registry.connected_count_now(), 1);
     }
 
     #[tokio::test]

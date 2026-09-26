@@ -15,7 +15,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
-            // Quit confirmation: warn before killing in-flight transfers.
+            // Quit confirmation: warn before killing in-flight transfers or
+            // dropping live server sessions.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let engine = window
                     .app_handle()
@@ -23,10 +24,40 @@ pub fn run() {
                     .inner()
                     .clone();
                 let pending = tauri::async_runtime::block_on(engine.pending_work_count());
-                if pending == 0 {
+                let connected = window
+                    .app_handle()
+                    .state::<ConnectionRegistry>()
+                    .connected_count_now();
+                if pending == 0 && connected == 0 {
                     return; // nothing at stake: close as usual
                 }
                 api.prevent_close();
+
+                let message = match (pending, connected) {
+                    (p, 0) => {
+                        let plural = if p == 1 { "" } else { "s" };
+                        format!(
+                            "{p} transfer{plural} are still running or queued. \
+                             Quitting now stops them; resumable files keep their progress."
+                        )
+                    }
+                    (0, c) => {
+                        let plural = if c == 1 { "" } else { "s" };
+                        format!(
+                            "You are connected to {c} server{plural}. \
+                             Quitting will end those sessions."
+                        )
+                    }
+                    (p, c) => {
+                        let tp = if p == 1 { "" } else { "s" };
+                        let cp = if c == 1 { "" } else { "s" };
+                        format!(
+                            "{p} transfer{tp} are still running or queued, and you are \
+                             connected to {c} server{cp}. Quitting stops the transfers \
+                             and ends the sessions."
+                        )
+                    }
+                };
 
                 let handle = window.app_handle().clone();
                 let window = window.clone();
@@ -34,13 +65,9 @@ pub fn run() {
                     use tauri_plugin_dialog::{
                         DialogExt, MessageDialogButtons, MessageDialogKind,
                     };
-                    let plural = if pending == 1 { "" } else { "s" };
                     let quit = handle
                         .dialog()
-                        .message(format!(
-                            "{pending} transfer{plural} are still running or queued. \
-                             Quitting now stops them; resumable files keep their progress."
-                        ))
+                        .message(message)
                         .title("Quit FlowFTP?")
                         .kind(MessageDialogKind::Warning)
                         .buttons(MessageDialogButtons::OkCancelCustom("Quit".into(), "Cancel".into()))
