@@ -605,7 +605,10 @@
           onDownload={handleDownload}
           onEdit={handleEdit}
           disconnected={!app.activeConnectionId}
-          onConnect={() => (app.quickConnectOpen = true)}
+          onConnect={() => {
+            app.quickConnectMode = 'quick';
+            app.quickConnectOpen = true;
+          }}
           onCreateFolder={(name) => handleCreateFolder('remote', name)}
           onRename={(from, to) => handleRename('remote', from, to)}
           onDelete={(names) => handleDelete('remote', names)}

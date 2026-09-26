@@ -2,7 +2,7 @@
   import { app } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
   import { connect, IS_TAURI, profileSave } from '$lib/ipc';
-  import type { Protocol } from '$lib/types';
+  import type { Connection, Protocol } from '$lib/types';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
@@ -34,10 +34,48 @@
         c.username === (username.trim() || 'anonymous')
     )
   );
+  const recentConnections = $derived(app.recentConnections);
 
   function chooseProtocol(p: (typeof protocols)[number]) {
     protocol = p.id;
     port = p.port;
+  }
+
+  function prefillConnection(connection: Connection) {
+    protocol = connection.protocol;
+    host = connection.host;
+    port = connection.port;
+    username = connection.username;
+    password = '';
+  }
+
+  /** Reuse a recent session or connect a saved profile directly from Quick Connect. */
+  async function connectRecent(connection: Connection) {
+    if (connecting) return;
+    errorMessage = null;
+
+    if (connection.status === 'connected') {
+      if (app.activeConnectionId !== connection.id) {
+        app.activeConnectionId = connection.id;
+        app.remotePath = '/';
+      }
+      app.quickConnectOpen = false;
+      return;
+    }
+
+    prefillConnection(connection);
+    if (!connection.keychain) return;
+
+    connecting = true;
+    try {
+      await app.reconnectSavedConnection(connection);
+      app.remotePath = '/';
+      app.quickConnectOpen = false;
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      connecting = false;
+    }
   }
 
   // Prefill from a saved profile when the modal opens via the sidebar.
@@ -78,13 +116,14 @@
         password,
         saveKeychain: keychainWanted
       });
-      app.upsertConnection(connection);
+      const activeConnection = existing
+        ? { ...connection, name: existing.name, favorite: existing.favorite }
+        : connection;
+      app.upsertConnection(activeConnection);
       // Persist the profile only when this is a New Connection (and wanted).
       // A Quick Connect stays ad-hoc: active now, gone from the sidebar later.
       if (IS_TAURI && app.quickConnectMode === 'new' && saveProfile) {
-        profileSave(connection)
-          .then((profiles) => (app.connections = profiles))
-          .catch(() => {});
+        profileSave(activeConnection).catch(() => {});
       }
       app.remotePath = '/';
       app.quickConnectOpen = false;
@@ -105,9 +144,40 @@
   title={app.quickConnectMode === 'new' ? 'New Connection' : 'Quick Connect'}
   description={app.quickConnectMode === 'new'
     ? 'Set up a saved connection. The profile is kept for reuse; the password goes into macOS Keychain.'
-    : 'Connect right now without saving the connection. The password can still go into macOS Keychain.'}
+    : 'Reconnect to a recent server, or connect ad hoc without saving a profile.'}
   width="md"
 >
+  {#if app.quickConnectMode === 'quick' && recentConnections.length > 0}
+    <section class="mb-4">
+      <div class="mb-2 flex items-center justify-between">
+        <span class="text-xs font-medium text-fg-muted">Recent connections</span>
+        <span class="text-[10px] text-fg-faint">Select to connect</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        {#each recentConnections as connection (connection.id)}
+          <button
+            type="button"
+            class="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-panel px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-bg-hover disabled:opacity-50"
+            disabled={connecting}
+            onclick={() => void connectRecent(connection)}
+          >
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-medium text-fg">{connection.name || connection.host}</span>
+              <span class="block truncate text-[11px] text-fg-subtle">
+                {connection.protocol.toUpperCase()} · {connection.username}@{connection.host}:{connection.port}
+              </span>
+            </span>
+            <span class="shrink-0 text-[11px] text-accent-text">
+              {connection.status === 'connected'
+                ? connection.id === app.activeConnectionId ? 'Active' : 'Switch'
+                : connection.keychain ? 'Connect' : 'Use'}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
   <!-- Protocol selector -->
   <div class="mb-4 grid grid-cols-3 gap-2">
     {#each protocols as p (p.id)}

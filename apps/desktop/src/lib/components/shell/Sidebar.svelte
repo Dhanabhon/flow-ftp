@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
   import { cn } from '$lib/utils';
-  import { connect, profileDelete, profileSave } from '$lib/ipc';
+  import { profileDelete, profileSave } from '$lib/ipc';
   import type { Connection, View } from '$lib/types';
   import {
     IconPlug,
@@ -34,11 +34,7 @@
   let activeView = $derived(app.view);
 
   const favorites = $derived(app.connections.filter((c) => c.favorite));
-  const recent = $derived(
-    [...app.connections]
-      .sort((a, b) => (b.lastConnected ?? 0) - (a.lastConnected ?? 0))
-      .slice(0, 3)
-  );
+  const recent = $derived(app.recentConnections);
 
   /**
    * Click a saved connection: activate it when already connected, reconnect
@@ -51,23 +47,10 @@
     }
     if (conn.keychain) {
       try {
-        const connection = await connect({
-          id: conn.id,
-          protocol: conn.protocol,
-          host: conn.host,
-          port: conn.port,
-          username: conn.username,
-          password: '',
-          saveKeychain: false,
-          useKeychainPassword: true
-        });
-        app.upsertConnection(connection);
-        // Refresh lastConnected on disk (status normalizes to disconnected).
-        profileSave(connection)
-          .then((profiles) => (app.connections = profiles))
-          .catch(() => {});
+        await app.reconnectSavedConnection(conn);
       } catch (e) {
         app.notify('warning', 'Could not reconnect', e instanceof Error ? e.message : String(e));
+        app.quickConnectMode = 'quick';
         app.quickConnectPrefill = {
           protocol: conn.protocol,
           host: conn.host,
@@ -78,6 +61,7 @@
       }
       return;
     }
+    app.quickConnectMode = 'quick';
     app.quickConnectPrefill = {
       protocol: conn.protocol,
       host: conn.host,

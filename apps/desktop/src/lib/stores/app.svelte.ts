@@ -41,6 +41,12 @@ class AppState {
     return this.connections.find((c) => c.id === this.activeConnectionId) ?? null;
   }
 
+  get recentConnections() {
+    return [...this.connections]
+      .sort((a, b) => (b.lastConnected ?? 0) - (a.lastConnected ?? 0))
+      .slice(0, 3);
+  }
+
   // ── File browser (dual pane) ────────────────────────────────
   localFiles = $state<RemoteFile[]>(mockLocalFiles);
   remoteFiles = $state<RemoteFile[]>(mockRemoteFiles);
@@ -109,6 +115,31 @@ class AppState {
       this.connections = [...this.connections, connection];
     }
     this.activeConnectionId = connection.id;
+  }
+
+  /** Reconnect a saved profile through Keychain and preserve its saved metadata. */
+  async reconnectSavedConnection(profile: Connection) {
+    const { connect, profileSave, IS_TAURI } = await import('$lib/ipc');
+    const connection = await connect({
+      id: profile.id,
+      protocol: profile.protocol,
+      host: profile.host,
+      port: profile.port,
+      username: profile.username,
+      password: '',
+      saveKeychain: false,
+      useKeychainPassword: true
+    });
+    const activeConnection = {
+      ...connection,
+      name: profile.name,
+      favorite: profile.favorite,
+      keychain: profile.keychain
+    };
+
+    this.upsertConnection(activeConnection);
+    if (IS_TAURI) profileSave(activeConnection).catch(() => {});
+    return activeConnection;
   }
 
   /**
