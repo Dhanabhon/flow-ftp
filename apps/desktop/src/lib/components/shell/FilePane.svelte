@@ -44,7 +44,10 @@
     onCreateFolder,
     onRename,
     onDelete,
-    error = null
+    error = null,
+    onDropLocalFiles,
+    onDropRemoteEntries,
+    externalDragOver = false
   }: {
     side: 'local' | 'remote';
     title: string;
@@ -78,7 +81,127 @@
     onDelete?: (names: string[]) => void;
     /** Pane-level error surfaced by the data layer, null when healthy. */
     error?: string | null;
+    /** Local files dropped onto this pane (remote side uploads them). */
+    onDropLocalFiles?: (files: { localPath: string; fileName: string }[], targetDir: string) => void;
+    /** Remote entries dropped onto this pane (local side downloads them). */
+    onDropRemoteEntries?: (entries: { name: string; isDir: boolean }[], targetDir: string) => void;
+    /** External drag hovering (Finder drop onto the remote pane). */
+    externalDragOver?: boolean;
   } = $props();
+
+
+  // ── Drag & drop ───────────────────────────────────────────────────────────
+  const LOCAL_MIME = 'application/x-flowftp-local';
+  const REMOTE_MIME = 'application/x-flowftp-remote';
+
+  /** Pane-level highlight while a compatible drag hovers. */
+  let paneDragOver = $state(false);
+  /** Directory row currently highlighted as the drop target. */
+  let rowDragOver = $state<string | null>(null);
+  /** Depth counter: child dragleave events fire before the real pane exit. */
+  let dragDepth = 0;
+
+  function dragFromOtherPane(e: DragEvent): boolean {
+    const types = e.dataTransfer?.types ?? [];
+    if (isLocal) return types.includes(REMOTE_MIME);
+    return types.includes(LOCAL_MIME) || types.includes('Files');
+  }
+
+  function onPaneDragEnter(e: DragEvent) {
+    if (!dragFromOtherPane(e) || disconnected) return;
+    dragDepth += 1;
+    paneDragOver = true;
+  }
+
+  function onPaneDragLeave() {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) {
+      paneDragOver = false;
+      rowDragOver = null;
+    }
+  }
+
+  /** Accept a drop: route to the directory row if one is targeted, else the pane root. */
+  function onPaneDrop(e: DragEvent) {
+    dragDepth = 0;
+    const wasOver = paneDragOver;
+    paneDragOver = false;
+    const targetRow = rowDragOver;
+    rowDragOver = null;
+    if (disconnected || !wasOver) return;
+    e.preventDefault();
+
+    const targetDir =
+      targetRow && targetRow !== '..'
+        ? path === '/'
+          ? `/${targetRow}`
+          : `${path.replace(/\/+$/, '')}/${targetRow}`
+        : path;
+
+    const localData = e.dataTransfer?.getData(LOCAL_MIME);
+    const remoteData = e.dataTransfer?.getData(REMOTE_MIME);
+
+    // Remote pane receives local files -> upload.
+    if (!isLocal && localData) {
+      try {
+        const entries = JSON.parse(localData) as { name: string; localPath: string; isDir?: boolean }[];
+        onDropLocalFiles?.(
+          entries.filter((entry) => !entry.isDir).map((entry) => ({ localPath: entry.localPath, fileName: entry.name })),
+          targetDir
+        );
+      } catch {
+        // malformed payload: ignore
+      }
+      return;
+    }
+
+    // Local pane receives remote entries -> download.
+    if (isLocal && remoteData) {
+      try {
+        const entries = JSON.parse(remoteData) as { name: string; isDir: boolean }[];
+        onDropRemoteEntries?.(
+          entries.filter((entry) => !entry.isDir),
+          targetDir
+        );
+      } catch {
+        // malformed payload: ignore
+      }
+    }
+  }
+
+  function rowDragStart(e: DragEvent, file: RemoteFile) {
+    const entry = { name: file.name, isDir: file.kind === 'directory' };
+    const payload = JSON.stringify([entry]);
+    if (isLocal) {
+      const base = path === '/' ? '' : path.replace(/\/+$/, '');
+      const withPaths = JSON.stringify([
+        { ...entry, localPath: `${base}/${file.name}` }
+      ]);
+      e.dataTransfer?.setData(LOCAL_MIME, withPaths);
+    } else {
+      e.dataTransfer?.setData(REMOTE_MIME, payload);
+    }
+    e.dataTransfer!.effectAllowed = 'copy';
+  }
+
+  function rowDragOverFolder(e: DragEvent, name: string) {
+    if (name === '..') return;
+    if (!dragFromOtherPane(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    rowDragOver = name;
+  }
+
+  function rowDropFolder(e: DragEvent, name: string) {
+    if (name === '..' || !dragFromOtherPane(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // Reuse the pane handler with the row targeted.
+    const previous = rowDragOver;
+    rowDragOver = name;
+    onPaneDrop(e);
+    if (previous !== null) rowDragOver = previous;
+  }
 
   // ── Inline file management state ──────────────────────────────────────────
   /** Name being renamed in place (row shows an input). */
@@ -173,8 +296,16 @@
 </script>
 
 <section
-  class="flex min-h-0 flex-1 flex-col border-border bg-bg-elevated"
-  class:border-r={isLocal}
+  class={cn(
+    'flex min-h-0 flex-1 flex-col bg-bg-elevated transition-shadow',
+    isLocal && 'border-r',
+    (paneDragOver || externalDragOver) && 'ring-2 ring-inset ring-accent bg-accent/5'
+  )}
+  aria-label='{title} files'
+  ondragenter={onPaneDragEnter}
+  ondragover={(e) => { if (dragFromOtherPane(e) && !disconnected) e.preventDefault(); }}
+  ondragleave={onPaneDragLeave}
+  ondrop={onPaneDrop}
 >
   <!-- Pane header -->
   <div class="flex h-10 items-center gap-1 border-b border-border px-2.5">
@@ -308,13 +439,19 @@
       <button
         class={cn(
           'group flex w-full items-center gap-2 px-3 py-1 text-left text-sm transition-colors',
-          isSel ? 'bg-bg-active text-fg' : 'text-fg-muted hover:bg-bg-hover'
+          isSel ? 'bg-bg-active text-fg' : 'text-fg-muted hover:bg-bg-hover',
+          rowDragOver === f.name && 'bg-accent/10 ring-1 ring-inset ring-accent'
         )}
+        draggable={isLocal && f.name !== '..'}
+        ondragstart={(e) => rowDragStart(e, f)}
         onclick={(e) => onSelect(f.name, e.metaKey || e.ctrlKey || e.shiftKey)}
         ondblclick={() => {
           if (f.kind === 'directory') onNavigate?.(f.name);
           else if (!isLocal) onEdit?.(f.name);
         }}
+        ondragover={(e) => f.kind === 'directory' && rowDragOverFolder(e, f.name)}
+        ondragleave={() => { if (rowDragOver === f.name) rowDragOver = null; }}
+        ondrop={(e) => f.kind === 'directory' && rowDropFolder(e, f.name)}
         title={
           f.kind === 'directory'
             ? 'Double-click to open'

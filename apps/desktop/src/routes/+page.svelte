@@ -13,6 +13,7 @@
     remoteEditOpen
   } from '$lib/ipc';
   import { localDelete, localMkdir, localRename, mkdirRemote, renameRemote } from '$lib/ipc';
+  import type { TransferDirection } from '$lib/types';
   import Modal from '$lib/components/ui/modal.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import { IconAlert } from '$lib/components/icons';
@@ -104,6 +105,154 @@
       .catch((e: Error) => (app.errors.remote = e.message));
   });
 
+  // ── Drag & drop ───────────────────────────────────────────────────────────
+
+  /** Wrapper element around the remote pane: hit-test for Finder drops. */
+  let remotePaneEl: HTMLDivElement | null = $state(null);
+  /** Finder drag hovering over the remote pane. */
+  let externalDragOver = $state(false);
+
+  /**
+   * Queue uploads, checking the destination directory for files that would
+   * be replaced. Falls back to direct enqueue when the target is not the
+   * currently listed folder (its contents are unknown).
+   */
+  function beginUploads(
+    uploads: { localPath: string; fileName: string }[],
+    targetDir: string = app.remotePath
+  ) {
+    if (!app.activeConnectionId || uploads.length === 0) return;
+    const known =
+      targetDir === app.remotePath
+        ? new Set(app.remoteFiles.map((f) => f.name))
+        : null;
+    const overwrites = known
+      ? uploads.filter((u) => known.has(u.fileName))
+      : [];
+    if (overwrites.length > 0) {
+      overwriteConfirm = {
+        direction: 'upload',
+        targetDir,
+        items: overwrites.map((u) => ({ localPath: u.localPath, name: u.fileName }))
+      };
+      return;
+    }
+    enqueueUploads(uploads, targetDir);
+  }
+
+  function enqueueUploads(
+    uploads: { localPath: string; fileName: string }[],
+    targetDir: string
+  ) {
+    for (const upload of uploads) {
+      enqueueTransfer({
+        id: crypto.randomUUID(),
+        connectionId: app.activeConnectionId!,
+        direction: 'upload',
+        remotePath: joinPath(targetDir, upload.fileName),
+        localPath: upload.localPath,
+        fileName: upload.fileName
+      }).catch((e: Error) => app.notify('danger', 'Upload failed to start', e.message));
+    }
+  }
+
+  /** Queue downloads, confirming local replacements in the listed folder. */
+  function beginDownloads(
+    entries: { name: string; isDir: boolean }[],
+    targetDir: string = app.localPath
+  ) {
+    const files = entries.filter((entry) => !entry.isDir);
+    if (!files.length) return;
+    const known =
+      targetDir === app.localPath
+        ? new Set(app.localFiles.map((f) => f.name))
+        : null;
+    const overwrites = known ? files.filter((f) => known.has(f.name)) : [];
+    if (overwrites.length > 0) {
+      overwriteConfirm = { direction: 'download', targetDir, items: files };
+      return;
+    }
+    enqueueDownloads(files, targetDir);
+  }
+
+  function enqueueDownloads(files: { name: string }[], targetDir: string) {
+    for (const file of files) {
+      enqueueTransfer({
+        id: crypto.randomUUID(),
+        connectionId: app.activeConnectionId!,
+        direction: 'download',
+        remotePath: joinPath(app.remotePath, file.name),
+        localPath: joinPath(targetDir, file.name),
+        fileName: file.name
+      }).catch((e: Error) => app.notify('danger', 'Download failed to start', e.message));
+    }
+  }
+
+  /** Finder drop onto the remote pane: watch, hit-test, upload on drop. */
+  $effect(() => {
+    if (!IS_TAURI) return;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    import('@tauri-apps/api/webview').then(({ getCurrentWebview }) =>
+      getCurrentWebview().onDragDropEvent((event) => {
+        if (disposed) return;
+        const payload = event.payload;
+        if (payload.type === 'leave') {
+          externalDragOver = false;
+          return;
+        }
+        const rect = remotePaneEl?.getBoundingClientRect();
+        const scale = window.devicePixelRatio || 1;
+        const x = payload.position.x / scale;
+        const y = payload.position.y / scale;
+        const inside =
+          !!rect &&
+          !!app.activeConnectionId &&
+          x >= rect.left &&
+          x <= rect.right &&
+          y >= rect.top &&
+          y <= rect.bottom;
+
+        if (payload.type === 'enter' || payload.type === 'over') {
+          externalDragOver = inside;
+        } else {
+          // drop
+          externalDragOver = false;
+          if (inside && payload.paths.length > 0) {
+            beginUploads(
+              payload.paths.map((localPath) => ({
+                localPath,
+                fileName: localPath.split('/').pop() ?? localPath
+              }))
+            );
+          }
+        }
+      })
+    ).then((un) => {
+      if (disposed) un();
+      else unlisten = un;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  /** Drop callbacks from the panes. */
+  function handleDropLocalFiles(
+    files: { localPath: string; fileName: string }[],
+    targetDir: string
+  ) {
+    beginUploads(files, targetDir);
+  }
+
+  function handleDropRemoteEntries(
+    entries: { name: string; isDir: boolean }[],
+    targetDir: string
+  ) {
+    beginDownloads(entries, targetDir);
+  }
+
   // ── Navigation handlers ───────────────────────────────────────────────────
 
   /** Navigate the local pane; `..` goes up one level. */
@@ -140,22 +289,12 @@
 
   const basename = (path: string) => path.split('/').pop() ?? path;
 
-  /** Uploads queued behind an overwrite confirmation: file -> remote path. */
-  let overwriteConfirm = $state<{ uploads: { localPath: string; fileName: string }[] } | null>(null);
-
-  function enqueueUploads(uploads: { localPath: string; fileName: string }[]) {
-    if (!app.activeConnectionId) return;
-    for (const upload of uploads) {
-      enqueueTransfer({
-        id: crypto.randomUUID(),
-        connectionId: app.activeConnectionId,
-        direction: 'upload',
-        remotePath: joinPath(app.remotePath, upload.fileName),
-        localPath: upload.localPath,
-        fileName: upload.fileName
-      }).catch((e: Error) => app.notify('danger', 'Upload failed to start', e.message));
-    }
-  }
+  /** Uploads queued behind an overwrite confirmation. */
+  let overwriteConfirm = $state<{
+    direction: TransferDirection;
+    targetDir: string;
+    items: { localPath?: string; name: string }[];
+  } | null>(null);
 
   /** Upload the selected local files (or picked ones), confirming overwrites. */
   async function handleUpload() {
@@ -165,16 +304,9 @@
       selected.length > 0
         ? selected.map((name) => joinPath(app.localPath, name))
         : await pickFilesToUpload();
-    if (files.length === 0) return;
-    const uploads = files.map((file) => ({ localPath: file, fileName: basename(file) }));
-    const remoteNames = new Set(app.remoteFiles.map((f) => f.name));
-    const overwrites = uploads.filter((u) => remoteNames.has(u.fileName));
-    if (overwrites.length > 0) {
-      // Preview -> Confirm -> Execute (DESIGN.md): name what gets replaced.
-      overwriteConfirm = { uploads };
-    } else {
-      enqueueUploads(uploads);
-    }
+    beginUploads(
+      files.map((file) => ({ localPath: file, fileName: basename(file) }))
+    );
   }
 
   // ── File management (create / rename / delete) ───────────────────────────
@@ -249,16 +381,10 @@
     if (selected.length === 0) return;
     const destination = await pickDownloadDirectory();
     if (!destination) return;
-    for (const name of selected) {
-      await enqueueTransfer({
-        id: crypto.randomUUID(),
-        connectionId: app.activeConnectionId,
-        direction: 'download',
-        remotePath: joinPath(app.remotePath, name),
-        localPath: joinPath(destination, name),
-        fileName: name
-      });
-    }
+    beginDownloads(
+      selected.map((name) => ({ name, isDir: false })),
+      destination
+    );
   }
 </script>
 
@@ -292,8 +418,10 @@
           onCreateFolder={(name) => handleCreateFolder('local', name)}
           onRename={(from, to) => handleRename('local', from, to)}
           onDelete={(names) => handleDelete('local', names)}
+          onDropRemoteEntries={handleDropRemoteEntries}
           error={app.errors.local}
         />
+        <div class="flex min-w-0 flex-1" bind:this={remotePaneEl}>
         <FilePane
           side="remote"
           title="Remote"
@@ -312,8 +440,11 @@
           onCreateFolder={(name) => handleCreateFolder('remote', name)}
           onRename={(from, to) => handleRename('remote', from, to)}
           onDelete={(names) => handleDelete('remote', names)}
+          onDropLocalFiles={handleDropLocalFiles}
+          externalDragOver={externalDragOver}
           error={app.errors.remote}
-        />
+          />
+        </div>
         <PreviewPanel />
       </div>
 
@@ -350,21 +481,42 @@
   {/snippet}
 </Modal>
 
-<!-- Overwrite confirmation for uploads: Preview -> Confirm -> Execute -->
+<!-- Overwrite confirmation for transfers: Preview -> Confirm -> Execute -->
 <Modal
   open={overwriteConfirm !== null}
-  title="Replace {overwriteConfirm?.uploads.length ?? 0}
-    file{overwriteConfirm?.uploads.length === 1 ? '' : 's'} on {app.activeConnection?.name ?? 'the server'}?"
-  description="These files already exist in {app.remotePath}. Uploading replaces the remote copies — the local files are not changed."
+  title="Replace {overwriteConfirm?.items.length ?? 0}
+    file{overwriteConfirm?.items.length === 1 ? '' : 's'}?"
+  description={overwriteConfirm?.direction === 'upload'
+    ? `These files already exist in ${app.activeConnection?.name ?? 'the server'}:${overwriteConfirm?.targetDir}. Uploading replaces the remote copies. The local files are not changed.`
+    : `These files already exist in ${overwriteConfirm?.targetDir}. Downloading replaces the local copies. The remote files are not changed.`}
   width="sm"
 >
   <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-bg-panel p-2.5">
-    {#each overwriteConfirm?.uploads ?? [] as upload (upload.localPath)}
-      <div class="truncate font-mono text-xs text-fg">{upload.fileName}</div>
+    {#each overwriteConfirm?.items ?? [] as item (item.name)}
+      <div class="truncate font-mono text-xs text-fg">{item.name}</div>
     {/each}
   </div>
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (overwriteConfirm = null)}>Cancel</Button>
-    <Button variant="danger" onclick={() => { const u = overwriteConfirm; overwriteConfirm = null; if (u) enqueueUploads(u.uploads); }}>Replace</Button>
+    <Button
+      variant="danger"
+      onclick={() => {
+        const pending = overwriteConfirm;
+        overwriteConfirm = null;
+        if (!pending) return;
+        if (pending.direction === 'upload') {
+          enqueueUploads(
+            pending.items
+              .filter((item) => item.localPath)
+              .map((item) => ({ localPath: item.localPath!, fileName: item.name })),
+            pending.targetDir
+          );
+        } else {
+          enqueueDownloads(pending.items, pending.targetDir);
+        }
+      }}
+    >
+      Replace
+    </Button>
   {/snippet}
 </Modal>
