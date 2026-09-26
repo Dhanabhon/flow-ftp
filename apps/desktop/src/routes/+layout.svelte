@@ -26,6 +26,19 @@
   if (browser) theme.init();
 </script>
 
+<!--
+  Kill the webview's default right-click menu (Reload / Inspect Element)
+  outside editable fields. Text inputs keep the native paste menu.
+-->
+<svelte:window
+  oncontextmenu={(e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target?.closest('input, textarea, [contenteditable="true"]')) {
+      e.preventDefault();
+    }
+  }}
+/>
+
 <svelte:head><title>FlowFTP</title></svelte:head>
 
 {@render children?.()}
