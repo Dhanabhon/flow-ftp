@@ -13,6 +13,7 @@
     remoteEditOpen
   } from '$lib/ipc';
   import { localDelete, localMkdir, localRename, mkdirRemote, renameRemote } from '$lib/ipc';
+  import { untrack } from 'svelte';
   import { cn } from '$lib/utils';
   import type { TransferDirection } from '$lib/types';
   import { browser } from '$app/environment';
@@ -28,6 +29,7 @@
   import QuickConnect from '$lib/components/overlays/QuickConnect.svelte';
   import SyncPreview from '$lib/components/overlays/SyncPreview.svelte';
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
+  import QuitConfirmDialog from '$lib/components/shell/QuitConfirmDialog.svelte';
 
   // Global keyboard shortcuts — every binding advertised in the UI exists.
   function onKeydown(e: KeyboardEvent) {
@@ -97,38 +99,79 @@
       .catch((e: Error) => (app.errors.local = e.message));
   });
 
-  // Remote listing follows the active connection + remote path. A failed
-  // navigation reverts to the last folder that listed successfully, so the
-  // UI never shows stale contents of a folder we are not in.
-  let lastGoodRemotePath = $state<string | null>(null);
+  // Remote listing is EXPLICIT: navigate lists first and only commits the
+  // new path on success, so a failure leaves you in the current folder with
+  // its listing intact (Finder behavior). Effects only handle connection
+  // changes and manual refreshes.
+
+  async function loadRemote() {
+    const connectionId = app.activeConnectionId;
+    const path = app.remotePath;
+    if (!connectionId) return;
+    try {
+      const files = await listRemote(connectionId, path);
+      app.remoteFiles = files;
+      app.errors.remote = null;
+    } catch (e) {
+      app.errors.remote = e instanceof Error ? e.message : String(e);
+      app.remoteFiles = [];
+      app.remoteSelected = new Set();
+      if (app.inspector?.side === 'remote') app.inspector = null;
+    }
+  }
+
+  /** List `target`; commit the path only when the listing succeeds. */
+  async function goRemote(target: string) {
+    const connectionId = app.activeConnectionId;
+    if (!connectionId || target === app.remotePath) return;
+    try {
+      const files = await listRemote(connectionId, target);
+      app.remotePath = target;
+      app.remoteFiles = files;
+      app.remoteSelected = new Set();
+      app.errors.remote = null;
+      if (app.inspector?.side === 'remote') app.inspector = null;
+    } catch (e) {
+      // Stay in the current folder; surface why the target is unavailable.
+      app.errors.remote = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Double-click navigation: '..' goes up, a directory enters. */
+  function navigateRemote(name: string) {
+    if (name === '..') {
+      const parts = app.remotePath.split('/').filter(Boolean);
+      parts.pop();
+      void goRemote('/' + parts.join('/'));
+    } else {
+      void goRemote(joinPath(app.remotePath, name));
+    }
+  }
+
+  // Connection changes: fresh session starts at root; disconnected clears.
   $effect(() => {
     if (!IS_TAURI) return;
     const connectionId = app.activeConnectionId;
-    const path = app.remotePath;
-    void app.refreshTick;
     if (!connectionId) {
       app.remoteFiles = [];
       app.remoteSelected = new Set();
       app.errors.remote = null;
-      lastGoodRemotePath = null;
+      if (app.inspector?.side === 'remote') app.inspector = null;
       return;
     }
-    listRemote(connectionId, path)
-      .then((files) => {
-        app.remoteFiles = files;
-        app.errors.remote = null;
-        lastGoodRemotePath = path;
-      })
-      .catch((e: Error) => {
-        app.errors.remote = e.message;
-        app.remoteFiles = [];
-        app.remoteSelected = new Set();
-        if (app.inspector?.side === 'remote') app.inspector = null;
-        // Navigation failed: step back to the last folder that worked.
-        if (lastGoodRemotePath && lastGoodRemotePath !== path) {
-          app.remotePath = lastGoodRemotePath;
-        }
-      });
+    app.remotePath = '/';
+    untrack(() => {
+      void loadRemote();
+    });
+  });
+
+  // Manual refreshes (mutations bump refreshTick).
+  $effect(() => {
+    void app.refreshTick;
+    if (!IS_TAURI) return;
+    untrack(() => {
+      if (app.activeConnectionId) void loadRemote();
+    });
   });
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -340,18 +383,6 @@
     app.localSelected = new Set();
   }
 
-  /** Navigate the remote pane; `..` goes up one level. */
-  function navigateRemote(name: string) {
-    if (name === '..') {
-      const parts = app.remotePath.split('/').filter(Boolean);
-      parts.pop();
-      app.remotePath = '/' + parts.join('/');
-    } else {
-      app.remotePath = joinPath(app.remotePath, name);
-    }
-    app.remoteSelected = new Set();
-  }
-
   /** POSIX join with root normalization. */
   function joinPath(base: string, child: string): string {
     if (base === '/') return `/${child}`;
@@ -536,7 +567,7 @@
           showHidden={app.showHidden}
           connectionName={app.activeConnection?.name}
           onNavigate={navigateRemote}
-          onNavigateTo={(path) => (app.remotePath = path)}
+          onNavigateTo={(path) => void goRemote(path)}
           onDownload={handleDownload}
           onEdit={handleEdit}
           disconnected={!app.activeConnectionId}
@@ -564,6 +595,7 @@
 <QuickConnect />
 <SyncPreview />
 <ToastHost />
+<QuitConfirmDialog />
 
 <!-- Delete confirmation: Preview → Confirm → Execute (DESIGN.md) -->
 <Modal

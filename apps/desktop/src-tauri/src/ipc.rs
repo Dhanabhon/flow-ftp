@@ -372,6 +372,12 @@ pub async fn local_read_text(path: String) -> Result<Option<TextPreview>, IpcErr
     }))
 }
 
+/// Finish the quit after the user confirmed the themed dialog.
+#[tauri::command]
+pub fn confirm_quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 /// Set the transfer engine's bandwidth budget in bytes/sec (0 = unlimited).
 #[tauri::command]
 pub fn transfer_set_rate_limit(

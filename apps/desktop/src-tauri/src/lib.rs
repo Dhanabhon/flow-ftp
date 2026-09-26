@@ -6,8 +6,15 @@ mod sync;
 mod transfers;
 
 use bridge::ConnectionRegistry;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use transfers::{start_engine, CredentialCache};
+
+/// Counts shipped to the frontend so its quit dialog can phrase the warning.
+#[derive(Clone, serde::Serialize)]
+struct QuitInfo {
+    pending: usize,
+    connected: usize,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,50 +39,11 @@ pub fn run() {
                     return; // nothing at stake: close as usual
                 }
                 api.prevent_close();
-
-                let message = match (pending, connected) {
-                    (p, 0) => {
-                        let plural = if p == 1 { "" } else { "s" };
-                        format!(
-                            "{p} transfer{plural} are still running or queued. \
-                             Quitting now stops them; resumable files keep their progress."
-                        )
-                    }
-                    (0, c) => {
-                        let plural = if c == 1 { "" } else { "s" };
-                        format!(
-                            "You are connected to {c} server{plural}. \
-                             Quitting will end those sessions."
-                        )
-                    }
-                    (p, c) => {
-                        let tp = if p == 1 { "" } else { "s" };
-                        let cp = if c == 1 { "" } else { "s" };
-                        format!(
-                            "{p} transfer{tp} are still running or queued, and you are \
-                             connected to {c} server{cp}. Quitting stops the transfers \
-                             and ends the sessions."
-                        )
-                    }
-                };
-
-                let handle = window.app_handle().clone();
-                let window = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    use tauri_plugin_dialog::{
-                        DialogExt, MessageDialogButtons, MessageDialogKind,
-                    };
-                    let quit = handle
-                        .dialog()
-                        .message(message)
-                        .title("Quit FlowFTP?")
-                        .kind(MessageDialogKind::Warning)
-                        .buttons(MessageDialogButtons::OkCancelCustom("Quit".into(), "Cancel".into()))
-                        .blocking_show();
-                    if quit {
-                        let _ = window.destroy();
-                    }
-                });
+                // The themed in-app dialog asks the user; the frontend calls
+                // the confirm_quit command to finish the exit.
+                let _ = window
+                    .app_handle()
+                    .emit("quit-confirm", QuitInfo { pending, connected });
             }
         })
         .manage(ConnectionRegistry::default())
@@ -95,6 +63,7 @@ pub fn run() {
             ipc::local_rename,
             ipc::local_delete,
             ipc::local_read_text,
+            ipc::confirm_quit,
             transfers::transfer_enqueue,
             transfers::transfer_list,
             transfers::transfer_pause,

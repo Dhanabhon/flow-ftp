@@ -384,6 +384,27 @@ export async function pickDownloadDirectory(): Promise<string | null> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Quit confirmation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The app wants to quit but work is pending; the UI should confirm. */
+export function onQuitConfirm(
+  handler: (info: { pending: number; connected: number }) => void,
+): Promise<() => void> {
+  if (!IS_TAURI) return Promise.resolve(() => {});
+  return import('@tauri-apps/api/event').then(({ listen }) =>
+    listen<{ pending: number; connected: number }>('quit-confirm', (event) =>
+      handler(event.payload),
+    ).then((unlisten) => () => unlisten()),
+  );
+}
+
+/** Finish the quit after the user confirmed. */
+export function confirmQuit(): Promise<void> {
+  return call<void>('confirm_quit');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Remote editing
 // ─────────────────────────────────────────────────────────────────────────────
 
