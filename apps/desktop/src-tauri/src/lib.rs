@@ -30,6 +30,7 @@ pub fn run() {
             ipc::local_mkdir,
             ipc::local_rename,
             ipc::local_delete,
+            ipc::local_read_text,
             transfers::transfer_enqueue,
             transfers::transfer_list,
             transfers::transfer_pause,

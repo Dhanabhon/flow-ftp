@@ -43,6 +43,12 @@ export function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** POSIX join with root normalization. */
+export function joinPath(base: string, child: string): string {
+  if (base === '/') return `/${child}`;
+  return `${base.replace(/\/+$/, '')}/${child}`;
+}
+
 /** Clamp a number between min and max. */
 export function clamp(n: number, min: number, max: number): number {
   return Math.min(Math.max(n, min), max);

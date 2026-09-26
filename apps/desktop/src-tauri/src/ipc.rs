@@ -341,6 +341,37 @@ pub async fn local_delete(path: String) -> Result<(), IpcError> {
     .map_err(|e| local_io_error(&path, e))
 }
 
+/// Text preview payload: content plus whether it was cut off.
+#[derive(Debug, serde::Serialize)]
+pub struct TextPreview {
+    pub content: String,
+    pub truncated: bool,
+}
+
+/// Read the start of a local text file for the inspector preview.
+/// Refuses files larger than 512 KB and caps output at 128 KB.
+#[tauri::command]
+pub async fn local_read_text(path: String) -> Result<Option<TextPreview>, IpcError> {
+    const MAX_FILE: u64 = 512 * 1024;
+    const MAX_READ: usize = 128 * 1024;
+
+    let meta = tokio::fs::metadata(&path)
+        .await
+        .map_err(|e| local_io_error(&path, e))?;
+    if !meta.is_file() || meta.len() > MAX_FILE {
+        return Ok(None);
+    }
+    let bytes = tokio::fs::read(&path)
+        .await
+        .map_err(|e| local_io_error(&path, e))?;
+    let truncated = bytes.len() > MAX_READ;
+    let cut = if truncated { &bytes[..MAX_READ] } else { &bytes[..] };
+    Ok(Some(TextPreview {
+        content: String::from_utf8_lossy(cut).into_owned(),
+        truncated,
+    }))
+}
+
 /// Set the transfer engine's bandwidth budget in bytes/sec (0 = unlimited).
 #[tauri::command]
 pub fn transfer_set_rate_limit(

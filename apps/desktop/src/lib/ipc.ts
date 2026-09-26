@@ -253,6 +253,16 @@ export function localRename(from: string, to: string): Promise<void> {
   );
 }
 
+/** Read the start of a local text file for the preview (null = not readable). */
+export function localReadText(
+  path: string
+): Promise<{ content: string; truncated: boolean } | null> {
+  return mockOr(
+    () => call<{ content: string; truncated: boolean } | null>('local_read_text', { path }),
+    () => null,
+  );
+}
+
 /** Delete a local file or empty directory. */
 export function localDelete(path: string): Promise<void> {
   return mockOr(

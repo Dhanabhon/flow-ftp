@@ -1,6 +1,8 @@
 <script lang="ts">
   import { app } from '$lib/stores/app.svelte';
-  import { formatBytes, formatDate } from '$lib/utils';
+  import { formatBytes, formatDate, joinPath } from '$lib/utils';
+  import { localReadText, IS_TAURI } from '$lib/ipc';
+  import { convertFileSrc } from '@tauri-apps/api/core';
   import type { RemoteFile } from '$lib/types';
   import {
     IconImage,
@@ -23,6 +25,61 @@
   });
 
   const isRemote = $derived(app.inspector?.side === 'remote');
+
+  const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'];
+  const TEXT_EXTS = [
+    'md', 'txt', 'json', 'yaml', 'yml', 'toml', 'sh', 'conf', 'log', 'csv',
+    'js', 'ts', 'svelte', 'html', 'css', 'py', 'rs', 'go', 'xml', 'ini', 'env'
+  ];
+  const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+  const MAX_TEXT_BYTES = 512 * 1024;
+
+  /** What the preview surface can render for this entry. */
+  type Preview =
+    | { type: 'image'; url: string }
+    | { type: 'text'; path: string }
+    | { type: 'none' };
+
+  const preview = $derived.by<Preview>(() => {
+    if (!entry || entry.kind !== 'file' || isRemote || !IS_TAURI) return { type: 'none' };
+    const ext = entry.name.split('.').pop()?.toLowerCase() ?? '';
+    const path = joinPath(app.localPath, entry.name);
+    if (IMAGE_EXTS.includes(ext) && entry.size <= MAX_IMAGE_BYTES) {
+      return { type: 'image', url: convertFileSrc(path) };
+    }
+    if (TEXT_EXTS.includes(ext) && entry.size <= MAX_TEXT_BYTES) {
+      return { type: 'text', path };
+    }
+    return { type: 'none' };
+  });
+
+  /** Text content loads async; reset whenever the target changes. */
+  let textState = $state<{ content: string; truncated: boolean } | null>(null);
+  let textPath = $state<string | null>(null);
+  let imageBroken = $state(false);
+
+  $effect(() => {
+    if (preview.type !== 'text') {
+      textPath = null;
+      textState = null;
+      return;
+    }
+    if (textPath === preview.path) return;
+    const target = preview.path;
+    textPath = target;
+    textState = null;
+    localReadText(target)
+      .then((result) => {
+        if (textPath === target) textState = result;
+      })
+      .catch(() => {
+        if (textPath === target) textState = null;
+      });
+  });
+
+  $effect(() => {
+    if (preview.type === 'image') imageBroken = false;
+  });
 
   function kindMeta(entry: RemoteFile) {
     if (entry.kind === 'directory') return { Icon: IconFolder, label: 'Folder', tone: 'neutral' as const };
@@ -50,10 +107,24 @@
     <div class="flex-1 overflow-y-auto p-4">
       <!-- Preview surface -->
       <div class="relative mb-4 aspect-[4/3] overflow-hidden rounded-lg border border-border bg-bg-panel">
-        <div class="absolute inset-0 bg-gradient-to-br from-accent/20 via-bg-panel to-info/10"></div>
-        <div class="absolute inset-0 grid place-items-center">
-          <km.Icon size={48} class="text-fg-subtle" />
-        </div>
+        {#if preview.type === 'image' && !imageBroken}
+          <img
+            src={preview.url}
+            alt={entry.name}
+            class="h-full w-full object-contain"
+            onerror={() => (imageBroken = true)}
+          />
+        {:else if preview.type === 'text'}
+          <pre class="h-full w-full overflow-auto p-3 font-mono text-[11px] leading-relaxed text-fg-muted select-text">{textState?.content ?? 'Loading…'}</pre>
+          {#if textState?.truncated}
+            <div class="absolute bottom-1 right-2 text-[10px] text-fg-faint">truncated</div>
+          {/if}
+        {:else}
+          <div class="absolute inset-0 bg-gradient-to-br from-accent/20 via-bg-panel to-info/10"></div>
+          <div class="absolute inset-0 grid place-items-center">
+            <km.Icon size={48} class="text-fg-subtle" />
+          </div>
+        {/if}
         <div class="absolute left-2 top-2">
           <Badge variant={km.tone}>{km.label}</Badge>
         </div>
