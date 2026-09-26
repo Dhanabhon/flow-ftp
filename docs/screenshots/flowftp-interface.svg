@@ -1,0 +1,297 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">FlowFTP desktop interface</title>
+  <desc id="description">A macOS-style file transfer workspace with saved servers, local and remote file panes, a file inspector, and live transfers.</desc>
+  <defs>
+    <filter id="window-shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#1F2937" flood-opacity="0.12"/>
+    </filter>
+    <linearGradient id="preview" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#DBEAFE"/>
+      <stop offset="1" stop-color="#E8F4FA"/>
+    </linearGradient>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #111827; }
+      .muted { fill: #5D6572; }
+      .faint { fill: #9CA3AF; }
+      .small { font-size: 12px; }
+      .tiny { font-size: 10px; }
+      .mono { font-family: "SF Mono", Menlo, monospace; }
+      .icon { fill: none; stroke: #5D6572; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+      .folder { fill: none; stroke: #2563EB; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="900" rx="24" fill="#EEF1F5"/>
+  <g filter="url(#window-shadow)">
+    <rect x="10" y="10" width="1420" height="880" rx="18" fill="#FFFFFF" stroke="#DDE2E8"/>
+  </g>
+
+  <!-- macOS title bar -->
+  <path d="M28 10h1384a18 18 0 0 1 18 18v39H10V28A18 18 0 0 1 28 10Z" fill="#FFFFFF"/>
+  <circle cx="34" cy="39" r="6" fill="#FF5F57"/>
+  <circle cx="54" cy="39" r="6" fill="#FEBC2E"/>
+  <circle cx="74" cy="39" r="6" fill="#28C840"/>
+  <g transform="translate(100 25) scale(.24)">
+    <path d="M14 40C30 22 47 22 63 40S96 58 114 40" fill="none" stroke="#203250" stroke-width="14" stroke-linecap="round"/>
+    <path d="M14 64C30 46 47 46 63 64S96 82 114 64" fill="none" stroke="#2563EB" stroke-width="14" stroke-linecap="round"/>
+    <path d="M14 88C30 70 47 70 63 88S96 106 114 88" fill="none" stroke="#72C7FA" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <text x="132" y="44" font-size="15" font-weight="650" letter-spacing="-.3">FlowFTP</text>
+  <rect x="454" y="23" width="494" height="32" rx="9" fill="#F8F9FB" stroke="#E5E7EB"/>
+  <circle cx="474" cy="39" r="6" class="icon"/>
+  <path d="m479 44 5 5" class="icon"/>
+  <text x="495" y="44" font-size="12" class="muted">Search or run a command…</text>
+  <rect x="910" y="29" width="28" height="20" rx="5" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <text x="917" y="43" font-size="10" class="muted">⌘ K</text>
+  <path d="m1325 33 7-7 7 7-7 7-7-7Zm7-10v4m0 13v4m-11-11h4m14 0h4" class="icon"/>
+  <path d="M1362 31v16m-8-8h16" class="icon"/>
+  <circle cx="1400" cy="39" r="8" class="icon"/>
+  <path d="M1400 26v3m0 20v3m-13-13h3m20 0h3m-22-9 2 2m14 14 2 2m0-18-2 2m-14 14-2 2" class="icon"/>
+  <path d="M10 67h1420" stroke="#E5E7EB"/>
+
+  <!-- Sidebar -->
+  <rect x="10" y="67" width="220" height="823" fill="#FCFCFD"/>
+  <path d="M230 67v823" stroke="#E5E7EB"/>
+  <rect x="22" y="88" width="194" height="38" rx="9" fill="#E9EDF3"/>
+  <path d="M38 100v13m-5-7h10m-8-5 3-3 3 3" class="icon" stroke="#2563EB"/>
+  <text x="58" y="112" font-size="13" font-weight="600">Browser</text>
+  <path d="M34 151h13m-4-4 4 4-4 4m-5-8-4 4 4 4" class="icon"/>
+  <text x="58" y="155" font-size="13" class="muted">Transfers</text>
+  <path d="M34 190a7 7 0 1 1 2 5m-2-9v5h5" class="icon"/>
+  <text x="58" y="194" font-size="13" class="muted">Sync</text>
+  <path d="M22 216h194" stroke="#E5E7EB"/>
+  <text x="28" y="240" class="tiny muted" font-weight="700" letter-spacing="1.1">FAVORITES</text>
+  <circle cx="34" cy="264" r="4" fill="#16A34A"/>
+  <path d="M47 258h14v12H47zM50 255h8v3" class="icon"/>
+  <text x="70" y="269" font-size="12">Production Server</text>
+  <text x="185" y="269" class="tiny faint">SFTP</text>
+  <circle cx="34" cy="294" r="4" fill="#9CA3AF"/>
+  <path d="M47 288h14v12H47zM50 285h8v3" class="icon"/>
+  <text x="70" y="299" font-size="12" class="muted">Staging Box</text>
+  <text x="185" y="299" class="tiny faint">SFTP</text>
+  <text x="28" y="339" class="tiny muted" font-weight="700" letter-spacing="1.1">RECENT</text>
+  <circle cx="34" cy="363" r="7" fill="none" stroke="#9CA3AF" stroke-width="1.6"/>
+  <path d="M34 359v4l3 2" class="icon"/>
+  <text x="51" y="367" font-size="12" class="muted">Production Server</text>
+  <path d="m199 357 2 5 5 .5-4 3.5 1 5-4-2.5-4 2.5 1-5-4-3.5 5-.5z" fill="#E79A28"/>
+  <circle cx="34" cy="394" r="7" fill="none" stroke="#9CA3AF" stroke-width="1.6"/>
+  <path d="M34 390v4l3 2" class="icon"/>
+  <text x="51" y="398" font-size="12" class="muted">CDN Upload</text>
+  <circle cx="34" cy="425" r="7" fill="none" stroke="#9CA3AF" stroke-width="1.6"/>
+  <path d="M34 421v4l3 2" class="icon"/>
+  <text x="51" y="429" font-size="12" class="muted">Staging Box</text>
+  <path d="m199 419 2 5 5 .5-4 3.5 1 5-4-2.5-4 2.5 1-5-4-3.5 5-.5z" fill="#E79A28"/>
+  <rect x="22" y="824" width="196" height="52" rx="10" fill="#F1F3F6" stroke="#E5E7EB"/>
+  <rect x="34" y="837" width="27" height="27" rx="8" fill="#DCFCE7"/>
+  <path d="m47.5 841 7 2v6c0 5-4 8-7 9-3-1-7-4-7-9v-6z" fill="none" stroke="#16A34A" stroke-width="1.6"/>
+  <text x="70" y="845" font-size="12" font-weight="600">Keychain</text>
+  <circle cx="124" cy="841" r="3.5" fill="#16A34A"/>
+  <text x="132" y="845" class="tiny" fill="#15803D">ACTIVE</text>
+  <text x="34" y="862" class="tiny muted">3 credentials secured</text>
+
+  <!-- Local pane -->
+  <rect x="230" y="67" width="434" height="575" fill="#FFFFFF"/>
+  <path d="M664 67v575" stroke="#DDE2E8"/>
+  <g transform="translate(250 82)">
+    <path d="M2 7h15a3 3 0 0 1 3 3v8H2zM5 4h13" class="icon"/>
+  </g>
+  <text x="280" y="104" font-size="13" font-weight="650" letter-spacing="1">LOCAL</text>
+  <path d="M568 93h16v13h-16zM572 89h8" class="icon"/>
+  <path d="M601 95a8 8 0 1 1-2 9m-1-11v5h5" class="icon"/>
+  <path d="M627 92h16v14h-16zM635 96v6m-3-3h6" class="icon"/>
+  <path d="M10 113h1420" stroke="#E5E7EB"/>
+  <path d="M230 114h434v39H230z" fill="#FFFFFF"/>
+  <path d="M254 128h13v11h-13zM257 125h7" class="icon"/>
+  <text x="278" y="139" class="small muted">Users</text>
+  <path d="m321 129 4 4-4 4" stroke="#9CA3AF" fill="none" stroke-width="1.5"/>
+  <text x="338" y="139" class="small muted">tom</text>
+  <path d="m372 129 4 4-4 4" stroke="#9CA3AF" fill="none" stroke-width="1.5"/>
+  <rect x="388" y="119" width="79" height="27" rx="7" fill="#EEF0F3"/>
+  <text x="400" y="138" font-size="12" font-weight="550">Documents</text>
+  <path d="M230 153h434" stroke="#E5E7EB"/>
+  <text x="250" y="178" class="small muted" font-weight="600">Name ↑</text>
+  <text x="464" y="178" class="small muted" font-weight="600">Size</text>
+  <text x="528" y="178" class="small muted" font-weight="600">Modified</text>
+  <text x="615" y="178" class="tiny muted" font-weight="600">PERM</text>
+  <path d="M230 188h434" stroke="#E5E7EB"/>
+  <path d="M249 204h20v15h-20zM253 200h11" class="folder"/>
+  <text x="282" y="217" font-size="13" class="muted">..</text>
+  <text x="482" y="217" font-size="12" class="muted">—</text>
+  <text x="558" y="217" font-size="12" class="muted">—</text>
+  <path d="M249 242h20v15h-20zM253 238h11" class="folder"/>
+  <text x="282" y="255" font-size="13">Projects</text>
+  <text x="482" y="255" font-size="12" class="muted">—</text>
+  <text x="536" y="255" font-size="12" class="muted">2d ago</text>
+  <path d="M249 280h20v15h-20zM253 276h11" class="folder"/>
+  <text x="282" y="293" font-size="13">Screenshots</text>
+  <text x="482" y="293" font-size="12" class="muted">—</text>
+  <text x="536" y="293" font-size="12" class="muted">5h ago</text>
+  <path d="M249 318h20v15h-20zM253 314h11" class="folder"/>
+  <text x="282" y="331" font-size="13">Documents</text>
+  <text x="482" y="331" font-size="12" class="muted">—</text>
+  <text x="536" y="331" font-size="12" class="muted">1d ago</text>
+  <path d="M254 354h14v18h-14zM258 359h6m-6 4h6" class="icon"/>
+  <text x="282" y="369" font-size="13">archive.zip</text>
+  <text x="456" y="369" font-size="12" class="muted">228.9 MB</text>
+  <text x="536" y="369" font-size="12" class="muted">Sep 14</text>
+  <path d="M254 392h14v18h-14zM258 397h6m-6 4h6" class="icon"/>
+  <text x="282" y="407" font-size="13">budget-2026.xlsx</text>
+  <text x="467" y="407" font-size="12" class="muted">121 KB</text>
+  <text x="536" y="407" font-size="12" class="muted">3d ago</text>
+  <rect x="238" y="416" width="418" height="36" rx="6" fill="#E8F0FE"/>
+  <path d="M254 425h14v18h-14zM258 430h6m-6 4h6" class="icon"/>
+  <text x="282" y="439" font-size="13" font-weight="550">design-spec.fig</text>
+  <text x="478" y="439" font-size="12" class="muted">8 MB</text>
+  <text x="536" y="439" font-size="12" class="muted">30m ago</text>
+  <path d="M254 468h14v18h-14z" fill="none" stroke="#0891B2" stroke-width="1.7"/>
+  <circle cx="264" cy="474" r="2" fill="#0891B2"/>
+  <path d="m256 484 4-5 3 3 2-2 3 4" fill="none" stroke="#0891B2" stroke-width="1.4"/>
+  <text x="282" y="483" font-size="13">logo-final.png</text>
+  <text x="472" y="483" font-size="12" class="muted">527 KB</text>
+  <text x="536" y="483" font-size="12" class="muted">1d ago</text>
+  <path d="M254 506h14v18h-14zM258 511h6m-6 4h6" class="icon"/>
+  <text x="282" y="521" font-size="13">meeting-notes.md</text>
+  <text x="472" y="521" font-size="12" class="muted">4.1 KB</text>
+  <text x="536" y="521" font-size="12" class="muted">8h ago</text>
+  <path d="M230 602h434v40H230z" fill="#FCFCFD" stroke="#E5E7EB"/>
+  <rect x="550" y="608" width="96" height="28" rx="8" fill="#2563EB"/>
+  <path d="M567 628v-11m-4 4 4-4 4 4m4 7h9v-7h-9" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="590" y="627" font-size="12" fill="#FFFFFF" font-weight="600">Upload</text>
+
+  <!-- Remote pane -->
+  <rect x="664" y="67" width="434" height="575" fill="#FFFFFF"/>
+  <path d="M1098 67v575" stroke="#DDE2E8"/>
+  <path d="M687 93c-4-7 5-13 11-8 4-6 15-3 15 5 7 1 6 11-1 11h-19c-4 0-7-3-6-8Z" fill="none" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="720" y="104" font-size="13" font-weight="650" letter-spacing="1">REMOTE</text>
+  <circle cx="786" cy="101" r="2" fill="#9CA3AF"/>
+  <text x="796" y="104" font-size="12" class="muted">Production Server</text>
+  <path d="m1016 92 8 8m-10-3 9-9m-3 9 5-5" class="icon"/>
+  <path d="M1040 94h15v14h-15zM1044 90h7" class="icon"/>
+  <path d="M1068 93h15v14h-15zM1075 97v7m-3-3h6" class="icon"/>
+  <path d="M664 113h434" stroke="#E5E7EB"/>
+  <path d="M664 114h434v39H664z" fill="#FFFFFF"/>
+  <path d="M687 128h13v11h-13zM690 125h7" class="icon"/>
+  <text x="711" y="139" class="small muted">home</text>
+  <path d="m756 129 4 4-4 4" stroke="#9CA3AF" fill="none" stroke-width="1.5"/>
+  <text x="773" y="139" class="small muted">tom</text>
+  <path d="M664 153h434" stroke="#E5E7EB"/>
+  <text x="684" y="178" class="small muted" font-weight="600">Name ↑</text>
+  <text x="894" y="178" class="small muted" font-weight="600">Size</text>
+  <text x="958" y="178" class="small muted" font-weight="600">Modified</text>
+  <text x="1049" y="178" class="tiny muted" font-weight="600">PERM</text>
+  <path d="M664 188h434" stroke="#E5E7EB"/>
+  <path d="M683 204h20v15h-20zM687 200h11" class="folder"/>
+  <text x="716" y="217" font-size="13" class="muted">..</text>
+  <text x="907" y="217" font-size="12" class="muted">—</text>
+  <text x="986" y="217" font-size="12" class="muted">—</text>
+  <path d="M683 242h20v15h-20zM687 238h11" class="folder"/>
+  <text x="716" y="255" font-size="13">public_html</text>
+  <text x="907" y="255" font-size="12" class="muted">—</text>
+  <text x="966" y="255" font-size="12" class="muted">4h ago</text>
+  <path d="M683 280h20v15h-20zM687 276h11" class="folder"/>
+  <text x="716" y="293" font-size="13">logs</text>
+  <text x="907" y="293" font-size="12" class="muted">—</text>
+  <text x="966" y="293" font-size="12" class="muted">25m ago</text>
+  <path d="M683 318h20v15h-20zM687 314h11" class="folder"/>
+  <text x="716" y="331" font-size="13">backups</text>
+  <text x="907" y="331" font-size="12" class="muted">—</text>
+  <text x="966" y="331" font-size="12" class="muted">1d ago</text>
+  <path d="M683 356h20v15h-20zM687 352h11" class="folder"/>
+  <text x="716" y="369" font-size="13">config</text>
+  <text x="907" y="369" font-size="12" class="muted">—</text>
+  <text x="966" y="369" font-size="12" class="muted">6d ago</text>
+  <path d="M688 394h14v18h-14zM692 399h6m-6 4h6" class="icon"/>
+  <text x="716" y="407" font-size="13">deploy.sh</text>
+  <text x="895" y="407" font-size="12" class="muted">12.1 KB</text>
+  <text x="966" y="407" font-size="12" class="muted">2h ago</text>
+  <path d="M688 432h14v18h-14zM692 437h6m-6 4h6" class="icon"/>
+  <text x="716" y="445" font-size="13">nginx.conf</text>
+  <text x="895" y="445" font-size="12" class="muted">8 KB</text>
+  <text x="966" y="445" font-size="12" class="muted">5h ago</text>
+  <path d="M688 470h14v18h-14zM692 475h6m-6 4h6" class="icon"/>
+  <text x="716" y="483" font-size="13">access.log</text>
+  <text x="886" y="483" font-size="12" class="muted">80.1 MB</text>
+  <text x="966" y="483" font-size="12" class="muted">3m ago</text>
+  <path d="M688 508h14v18h-14zM692 513h6m-6 4h6" class="icon"/>
+  <text x="716" y="521" font-size="13">release-v2.4.tar.gz</text>
+  <text x="886" y="521" font-size="12" class="muted">45.8 MB</text>
+  <text x="966" y="521" font-size="12" class="muted">8h ago</text>
+  <path d="M664 602h434v40H664z" fill="#FCFCFD" stroke="#E5E7EB"/>
+  <rect x="984" y="608" width="100" height="28" rx="8" fill="#2563EB"/>
+  <path d="M1001 615v11m-4-4 4 4 4-4m4-7h9v7h-9" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1025" y="627" font-size="12" fill="#FFFFFF" font-weight="600">Download</text>
+
+  <!-- Inspector -->
+  <rect x="1098" y="67" width="332" height="575" fill="#FFFFFF"/>
+  <text x="1118" y="104" font-size="12" font-weight="650" letter-spacing="1" class="muted">LOCAL</text>
+  <path d="M1098 113h332" stroke="#E5E7EB"/>
+  <rect x="1118" y="132" width="292" height="168" rx="12" fill="url(#preview)" stroke="#E5E7EB"/>
+  <rect x="1130" y="144" width="44" height="20" rx="6" fill="#FFFFFF" fill-opacity=".8"/>
+  <text x="1140" y="158" class="tiny" font-weight="600" fill="#2563EB">FILE</text>
+  <path d="M1248 181h39l23 23v54h-62z" fill="#FFFFFF" fill-opacity=".7" stroke="#5D6572" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M1287 181v24h23" fill="none" stroke="#5D6572" stroke-width="3"/>
+  <path d="M1261 224h28m-28 10h28" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
+  <text x="1118" y="326" font-size="15" font-weight="650">design-spec.fig</text>
+  <text x="1118" y="347" class="small muted">8 MB · 30m ago</text>
+  <circle cx="1123" cy="374" r="5" fill="none" stroke="#5D6572" stroke-width="1.4"/>
+  <path d="M1123 371v4l2 1" class="icon"/>
+  <text x="1135" y="378" class="tiny muted" font-weight="700" letter-spacing=".8">DETAILS</text>
+  <text x="1118" y="405" class="small muted">Kind</text><text x="1260" y="405" class="small">File</text>
+  <text x="1118" y="431" class="small muted">Permissions</text><text x="1260" y="431" class="small mono">rw-r--r--</text>
+  <text x="1118" y="457" class="small muted">Size</text><text x="1260" y="457" class="small">8 MB</text>
+  <text x="1118" y="483" class="small muted">Modified</text><text x="1260" y="483" class="small">30 minutes ago</text>
+  <rect x="1118" y="511" width="292" height="52" rx="10" fill="#F1F3F6" stroke="#E5E7EB"/>
+  <path d="M1132 530h16v12h-16zM1136 527h8" class="icon"/>
+  <text x="1159" y="542" class="tiny mono muted">~/Documents</text>
+
+  <!-- Transfer queue -->
+  <path d="M230 642h1200v248H230z" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <path d="m252 663 6 6 6-6" fill="none" stroke="#5D6572" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="276" y="673" font-size="12" font-weight="700" letter-spacing="1.1">TRANSFERS</text>
+  <rect x="355" y="653" width="77" height="22" rx="11" fill="#E8F0FE"/>
+  <text x="367" y="668" class="tiny" font-weight="650" fill="#2563EB">1 ACTIVE</text>
+  <rect x="439" y="653" width="82" height="22" rx="11" fill="#F1F3F6"/>
+  <text x="451" y="668" class="tiny muted" font-weight="650">1 QUEUED</text>
+  <rect x="528" y="653" width="78" height="22" rx="11" fill="#FEE2E2"/>
+  <text x="540" y="668" class="tiny" font-weight="650" fill="#DC2626">1 FAILED</text>
+  <text x="1280" y="670" class="tiny muted" font-weight="600" letter-spacing=".7">SPEED</text>
+  <rect x="1324" y="650" width="85" height="27" rx="7" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <text x="1335" y="668" class="small">No limit</text>
+  <path d="m1395 661 5 5 5-5" fill="none" stroke="#5D6572" stroke-width="1.5"/>
+  <path d="M230 684h1200" stroke="#E5E7EB"/>
+  <text x="276" y="708" class="tiny muted" font-weight="700" letter-spacing=".8">NAME</text>
+  <text x="582" y="708" class="tiny muted" font-weight="700" letter-spacing=".8">PROGRESS</text>
+  <text x="965" y="708" class="tiny muted" font-weight="700" letter-spacing=".8">SIZE</text>
+  <text x="1110" y="708" class="tiny muted" font-weight="700" letter-spacing=".8">SPEED</text>
+  <text x="1244" y="708" class="tiny muted" font-weight="700" letter-spacing=".8">STATUS</text>
+  <path d="M230 717h1200" stroke="#E5E7EB"/>
+  <path d="M251 730v14m-5-9 5-5 5 5m-10 5h10" fill="none" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="276" y="738" class="small" font-weight="600">release-v2.4.tar.gz</text>
+  <text x="276" y="754" class="tiny muted">Production Server · /var/www/releases/</text>
+  <rect x="582" y="733" width="314" height="7" rx="3.5" fill="#E5E7EB"/>
+  <rect x="582" y="733" width="204" height="7" rx="3.5" fill="#2563EB"/>
+  <text x="965" y="743" class="small mono muted">29.8 / 45.8 MB</text>
+  <text x="1110" y="743" class="small mono" fill="#16A34A">11.8 MB/s</text>
+  <circle cx="1252" cy="739" r="5" fill="#2563EB"/>
+  <text x="1264" y="743" class="small" fill="#2563EB">Uploading</text>
+  <path d="M230 765h1200" stroke="#F0F1F3"/>
+  <path d="M251 778v14m-5-9 5-5 5 5m-10 5h10" fill="none" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="276" y="786" class="small" font-weight="600">db-dump.sql.gz</text>
+  <text x="276" y="802" class="tiny muted">Production Server · /backups/</text>
+  <rect x="582" y="781" width="314" height="7" rx="3.5" fill="#DCFCE7"/>
+  <rect x="582" y="781" width="314" height="7" rx="3.5" fill="#16A34A"/>
+  <text x="965" y="791" class="small mono muted">1.1 / 1.1 GB</text>
+  <text x="1110" y="791" class="small mono muted">—</text>
+  <circle cx="1252" cy="787" r="5" fill="#16A34A"/>
+  <text x="1264" y="791" class="small" fill="#15803D">Complete</text>
+  <path d="M230 813h1200" stroke="#F0F1F3"/>
+  <path d="M251 826v14m-5-9 5-5 5 5m-10 5h10" fill="none" stroke="#D97706" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="276" y="834" class="small" font-weight="600">design-spec.fig</text>
+  <text x="276" y="850" class="tiny muted">Staging Box · /uploads/</text>
+  <rect x="582" y="829" width="314" height="7" rx="3.5" fill="#E5E7EB"/>
+  <rect x="582" y="829" width="79" height="7" rx="3.5" fill="#D97706"/>
+  <text x="965" y="839" class="small mono muted">2 / 8 MB</text>
+  <text x="1110" y="839" class="small mono muted">Paused</text>
+  <circle cx="1252" cy="835" r="5" fill="#D97706"/>
+  <text x="1264" y="839" class="small" fill="#B45309">Paused</text>
+</svg>

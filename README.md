@@ -1,12 +1,22 @@
-# FlowFTP
+<div align="center">
+  <h1><img src="brand/flowftp/v5/lockup.svg" alt="FlowFTP" height="72"></h1>
+  <p><strong>A dual-pane file transfer client that feels at home on macOS.</strong></p>
+  <p>Built with Tauri 2, SvelteKit, and Rust.</p>
+  <p>v1.0.0 &nbsp;·&nbsp; FTP / FTPS / SFTP &nbsp;·&nbsp; macOS &nbsp;·&nbsp; MIT licensed</p>
+</div>
 
-A dual-pane FTP/SFTP client for macOS, built with Tauri 2, SvelteKit, and Rust. Open source, MIT licensed, and designed to feel like Finder rather than FileZilla.
+<p align="center">
+  <img src="docs/screenshots/flowftp-interface.svg" alt="FlowFTP interface with local and remote file browsers, saved connections, file details, and a transfer queue" width="100%">
+</p>
+<p align="center"><sub>Illustrative interface preview with sample files and connections.</sub></p>
 
 ## Status
 
 Under active development. The core is real and working: FTP, FTPS, and SFTP connections, a resumable transfer queue, folder sync with conflict resolution, remote editing, and saved connection profiles. What you see in the app is wired to the Rust backend, not a mockup.
 
 Not done yet: code signing and notarization, auto-update, cloud storage backends, tabs, and a remote terminal. See ROADMAP.md for the full list.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Features
 

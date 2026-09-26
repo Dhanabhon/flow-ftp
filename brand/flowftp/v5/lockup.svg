@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 160" role="img" aria-labelledby="title">
+  <title id="title">FlowFTP logo, tidal wave concept</title>
+  <g transform="translate(12 16)">
+    <path d="M14 40C30 22 47 22 63 40S96 58 114 40" fill="none" stroke="#203250" stroke-width="14" stroke-linecap="round"/>
+    <path d="M14 64C30 46 47 46 63 64S96 82 114 64" fill="none" stroke="#2563EB" stroke-width="14" stroke-linecap="round"/>
+    <path d="M14 88C30 70 47 70 63 88S96 106 114 88" fill="none" stroke="#72C7FA" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <text x="158" y="108" fill="#203250" font-family="Inter, SF Pro Display, Helvetica Neue, sans-serif" font-size="70" font-weight="650" letter-spacing="-3">FlowFTP</text>
+</svg>
