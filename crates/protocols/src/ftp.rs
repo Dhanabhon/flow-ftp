@@ -61,30 +61,51 @@ async fn login<T: TokioTlsStream + Send>(
         })
 }
 
+/// CWD into a directory before running a command against its entries.
+///
+/// Every mainstream client (Cyberduck, FileZilla) works this way: CWD into
+/// the directory, then address entries by bare name. Some shared-hosting FTP
+/// servers mishandle absolute paths in LIST/RETR/SIZE — one was observed
+/// listing the home directory for `LIST /domains` and answering 450 for the
+/// doubled path — while the same operations behave correctly after a CWD.
+async fn enter_dir<T: TokioTlsStream + Send>(
+    stream: &mut ImplAsyncFtpStream<T>,
+    dir: &FilePath,
+) -> CoreResult<()> {
+    let dir = dir.as_str();
+    stream.cwd(dir).await.map_err(|e| {
+        let mapped = map_ftp_error(e);
+        match mapped {
+            CoreError::Protocol(text) => CoreError::Protocol(format!("CWD {dir}: {text}")),
+            other => other,
+        }
+    })
+}
+
 /// List a directory. Prefers MLSD (RFC 3659, machine-readable) and falls back
-/// to the classic LIST parser for servers without it. MLSD failures are
-/// expected on servers without the feature; a LIST failure is the real error
-/// and is annotated with the command and path for diagnosis (e.g. symlinks a
-/// server refuses to follow).
+/// to the classic LIST parser for servers without it. The directory is
+/// entered with CWD first (see [`enter_dir`]) and listed relatively; a LIST
+/// failure is the real error and is annotated with the command and path for
+/// diagnosis (e.g. symlinks a server refuses to follow).
 async fn list_entries<T: TokioTlsStream + Send>(
     stream: &mut ImplAsyncFtpStream<T>,
     path: &FilePath,
 ) -> CoreResult<Vec<RemoteFile>> {
-    let dir = path.as_str();
-    let entries = match stream.mlsd(Some(dir)).await {
+    enter_dir(stream, path).await?;
+    let entries = match stream.mlsd(None).await {
         Ok(lines) => lines
             .iter()
             .filter_map(|line| ListParser::parse_mlsd(line).ok())
             .map(to_remote_file)
             .collect(),
         Err(_) => stream
-            .list(Some(dir))
+            .list(None)
             .await
             .map_err(|e| {
                 let mapped = map_ftp_error(e);
                 match mapped {
                     CoreError::Protocol(text) => {
-                        CoreError::Protocol(format!("LIST {dir}: {text}"))
+                        CoreError::Protocol(format!("LIST {path}: {text}"))
                     }
                     other => other,
                 }
@@ -98,22 +119,25 @@ async fn list_entries<T: TokioTlsStream + Send>(
 }
 
 /// Stat one path via SIZE + MDTM (universally supported; MLST is not).
+/// Runs relative to the parent directory after a CWD (see [`enter_dir`]).
 async fn stat_path<T: TokioTlsStream + Send>(
     stream: &mut ImplAsyncFtpStream<T>,
     path: &FilePath,
 ) -> CoreResult<RemoteFile> {
+    let name = path.name().to_string();
+    enter_dir(stream, &path.parent()).await?;
     let size = stream
-        .size(path.as_str())
+        .size(name.as_str())
         .await
         .map_err(map_ftp_error)? as u64;
     let modified = stream
-        .mdtm(path.as_str())
+        .mdtm(name.as_str())
         .await
         .ok()
         .map(|dt| dt.and_utc().timestamp_millis())
         .unwrap_or(0);
     Ok(RemoteFile {
-        name: path.name().to_string(),
+        name,
         kind: FileKind::File,
         size,
         modified,
@@ -129,22 +153,27 @@ async fn delete_any<T: TokioTlsStream + Send>(
     stream: &mut ImplAsyncFtpStream<T>,
     path: &FilePath,
 ) -> CoreResult<()> {
-    match stream.rm(path.as_str()).await {
+    let name = path.name().to_string();
+    enter_dir(stream, &path.parent()).await?;
+    match stream.rm(name.as_str()).await {
         Ok(()) => Ok(()),
         Err(FtpError::UnexpectedResponse(_)) => {
-            stream.rmdir(path.as_str()).await.map_err(map_ftp_error)
+            stream.rmdir(name.as_str()).await.map_err(map_ftp_error)
         }
         Err(e) => Err(map_ftp_error(e)),
     }
 }
 
 /// Open a remote file for reading, optionally resuming from `offset`
-/// (FTP `REST` before `RETR`).
+/// (FTP `REST` before `RETR`). The file is addressed relatively after a CWD
+/// into its parent (see [`enter_dir`]).
 async fn open_read_stream<T: TokioTlsStream + Send + 'static>(
     stream: &mut ImplAsyncFtpStream<T>,
     remote: &FilePath,
     offset: u64,
 ) -> CoreResult<Box<dyn AsyncRead + Send + Unpin>> {
+    let name = remote.name().to_string();
+    enter_dir(stream, &remote.parent()).await?;
     if offset > 0 {
         stream
             .resume_transfer(offset as usize)
@@ -152,26 +181,63 @@ async fn open_read_stream<T: TokioTlsStream + Send + 'static>(
             .map_err(map_ftp_error)?;
     }
     let data = stream
-        .retr_as_stream(remote.as_str())
+        .retr_as_stream(name.as_str())
         .await
         .map_err(map_ftp_error)?;
     Ok(Box::new(data))
 }
 
 /// Open a remote file for writing. `offset == 0` stores fresh (STOR);
-/// `offset > 0` appends (APPE) so interrupted uploads resume.
+/// `offset > 0` appends (APPE) so interrupted uploads resume. The file is
+/// addressed relatively after a CWD into its parent (see [`enter_dir`]).
 async fn open_write_stream<T: TokioTlsStream + Send + 'static>(
     stream: &mut ImplAsyncFtpStream<T>,
     remote: &FilePath,
     offset: u64,
 ) -> CoreResult<Box<dyn AsyncWrite + Send + Unpin>> {
+    let name = remote.name().to_string();
+    enter_dir(stream, &remote.parent()).await?;
     let data = if offset > 0 {
-        stream.append_with_stream(remote.as_str()).await
+        stream.append_with_stream(name.as_str()).await
     } else {
-        stream.put_with_stream(remote.as_str()).await
+        stream.put_with_stream(name.as_str()).await
     }
     .map_err(map_ftp_error)?;
     Ok(Box::new(data))
+}
+
+/// Create a directory, relative to its parent after a CWD (see
+/// [`enter_dir`]).
+async fn mkdir_in<T: TokioTlsStream + Send>(
+    stream: &mut ImplAsyncFtpStream<T>,
+    path: &FilePath,
+) -> CoreResult<()> {
+    let name = path.name().to_string();
+    enter_dir(stream, &path.parent()).await?;
+    stream.mkdir(name.as_str()).await.map_err(map_ftp_error)
+}
+
+/// Rename within one directory via bare names after a CWD (see
+/// [`enter_dir`]). Cross-directory moves keep absolute paths, which RNFR /
+/// RNTO accept on servers that resolve them correctly.
+async fn rename_to<T: TokioTlsStream + Send>(
+    stream: &mut ImplAsyncFtpStream<T>,
+    from: &FilePath,
+    to: &FilePath,
+) -> CoreResult<()> {
+    if from.parent().as_str() == to.parent().as_str() {
+        let dir = from.parent();
+        enter_dir(stream, &dir).await?;
+        stream
+            .rename(from.name(), to.name())
+            .await
+            .map_err(map_ftp_error)
+    } else {
+        stream
+            .rename(from.as_str(), to.as_str())
+            .await
+            .map_err(map_ftp_error)
+    }
 }
 
 /// Convert a suppaftp list entry into the domain type.
@@ -273,17 +339,11 @@ impl RemoteFs for FtpFs {
     }
 
     async fn mkdir(&mut self, path: &FilePath) -> CoreResult<()> {
-        self.require()?
-            .mkdir(path.as_str())
-            .await
-            .map_err(map_ftp_error)
+        mkdir_in(self.require()?, path).await
     }
 
     async fn rename(&mut self, from: &FilePath, to: &FilePath) -> CoreResult<()> {
-        self.require()?
-            .rename(from.as_str(), to.as_str())
-            .await
-            .map_err(map_ftp_error)
+        rename_to(self.require()?, from, to).await
     }
 
     async fn delete(&mut self, path: &FilePath) -> CoreResult<()> {
@@ -405,17 +465,11 @@ impl RemoteFs for FtpsFs {
     }
 
     async fn mkdir(&mut self, path: &FilePath) -> CoreResult<()> {
-        self.require()?
-            .mkdir(path.as_str())
-            .await
-            .map_err(map_ftp_error)
+        mkdir_in(self.require()?, path).await
     }
 
     async fn rename(&mut self, from: &FilePath, to: &FilePath) -> CoreResult<()> {
-        self.require()?
-            .rename(from.as_str(), to.as_str())
-            .await
-            .map_err(map_ftp_error)
+        rename_to(self.require()?, from, to).await
     }
 
     async fn delete(&mut self, path: &FilePath) -> CoreResult<()> {

@@ -39,6 +39,12 @@ pub fn map_ftp_error(e: FtpError) -> CoreError {
 /// Map an unexpected server response to the closest domain error.
 fn map_response(response: Response) -> CoreError {
     let text = String::from_utf8_lossy(&response.body).into_owned();
+    // Some shared-hosting servers report missing paths with 450 instead of
+    // 550 ("450 /dir: No such file or directory"); trust the server's own
+    // text over the code so the user sees "not found", not "permission".
+    if text.to_ascii_lowercase().contains("no such file") {
+        return CoreError::NotFound(text);
+    }
     match response.status {
         Status::NotLoggedIn | Status::InvalidCredentials => {
             CoreError::AuthFailed { username: String::new() }
@@ -107,6 +113,13 @@ mod tests {
         FtpError::UnexpectedResponse(suppaftp::types::Response::new(code, Vec::new()))
     }
 
+    fn response_with_body(code: Status, body: &str) -> FtpError {
+        FtpError::UnexpectedResponse(suppaftp::types::Response::new(
+            code,
+            body.as_bytes().to_vec(),
+        ))
+    }
+
     #[test]
     fn auth_failure_maps_to_auth_failed() {
         assert!(matches!(
@@ -123,6 +136,25 @@ mod tests {
     fn file_unavailable_maps_to_not_found() {
         let e = map_ftp_error(response(Status::FileUnavailable));
         assert!(matches!(e, CoreError::NotFound(_)));
+    }
+
+    #[test]
+    fn missing_path_text_maps_to_not_found_regardless_of_code() {
+        // Shared-hosting servers send 450 with "No such file or directory".
+        let e = map_ftp_error(response_with_body(
+            Status::RequestFileActionIgnored,
+            "450 /domains/domains: No such file or directory",
+        ));
+        assert!(matches!(e, CoreError::NotFound(_)));
+    }
+
+    #[test]
+    fn permission_text_without_missing_path_stays_permission() {
+        let e = map_ftp_error(response_with_body(
+            Status::RequestFileActionIgnored,
+            "450 Permission denied",
+        ));
+        assert!(matches!(e, CoreError::Permission(_)));
     }
 
     #[test]
