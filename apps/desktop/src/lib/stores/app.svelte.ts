@@ -109,6 +109,22 @@ class AppState {
     this.activeConnectionId = connection.id;
   }
 
+  /**
+   * Disconnect the active session: tear down the backend connection, reset
+   * the remote pane, and update the connection list.
+   */
+  async disconnectActive() {
+    const id = this.activeConnectionId;
+    if (!id) return;
+    const { disconnect } = await import('$lib/ipc');
+    await disconnect(id).catch(() => {});
+    this.markDisconnected(id);
+    this.remoteFiles = [];
+    this.remoteSelected = new Set();
+    this.errors.remote = null;
+    if (this.inspector?.side === 'remote') this.inspector = null;
+  }
+
   /** Mark a connection disconnected and drop it from the active slot. */
   markDisconnected(connectionId: string) {
     this.connections = this.connections.map((c) =>

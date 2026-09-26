@@ -11,6 +11,7 @@
     IconStar,
     IconClock,
     IconTrash,
+    IconUnplug,
     IconServer,
     IconPlus,
     IconWifi,
@@ -183,6 +184,16 @@
         <IconServer size={14} class="shrink-0 text-fg-subtle group-hover:text-fg-muted" />
         <span class="flex-1 truncate">{conn.name}</span>
         <span class="hidden items-center gap-0.5 group-hover:flex">
+          {#if conn.status === 'connected'}
+            <button
+              class="rounded p-0.5 text-fg-subtle hover:text-accent-text"
+              aria-label="Disconnect {conn.name}"
+              title="Disconnect"
+              onclick={(e) => { e.stopPropagation(); app.disconnectActive(); }}
+            >
+              <IconUnplug size={12} />
+            </button>
+          {/if}
           <button
             class="rounded p-0.5 text-fg-subtle hover:text-warning"
             aria-label="Remove {conn.name} from favorites"

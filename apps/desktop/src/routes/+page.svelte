@@ -531,6 +531,7 @@
           onRename={(from, to) => handleRename('remote', from, to)}
           onDelete={(names) => handleDelete('remote', names)}
           onDropLocalFiles={handleDropLocalFiles}
+          onDisconnect={() => app.disconnectActive()}
           externalDragOver={externalDragOver}
           error={app.errors.remote}
           />

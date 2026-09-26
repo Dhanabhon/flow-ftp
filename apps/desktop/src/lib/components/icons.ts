@@ -63,6 +63,7 @@ import Sun from 'lucide-svelte/icons/sun';
 import Moon from 'lucide-svelte/icons/moon';
 import Monitor from 'lucide-svelte/icons/monitor';
 import EyeOff from 'lucide-svelte/icons/eye-off';
+import Unplug from 'lucide-svelte/icons/unplug';
 import Pencil from 'lucide-svelte/icons/pencil';
 import FolderPlus from 'lucide-svelte/icons/folder-plus';
 
@@ -128,6 +129,7 @@ export {
   Moon as IconMoon,
   Monitor as IconMonitor,
   EyeOff as IconEyeOff,
+  Unplug as IconUnplug,
   Pencil as IconPencil,
   FolderPlus as IconFolderPlus
 };

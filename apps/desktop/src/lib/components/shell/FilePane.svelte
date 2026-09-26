@@ -18,6 +18,7 @@
     IconTrash,
     IconPlug,
     IconZap,
+    IconUnplug,
     IconUpload,
     IconDownload,
   } from '$lib/components/icons';
@@ -41,6 +42,7 @@
     onRefresh,
     disconnected = false,
     onConnect,
+    onDisconnect,
     onCreateFolder,
     onRename,
     onDelete,
@@ -73,6 +75,8 @@
     disconnected?: boolean;
     /** Open the connect flow (disconnected empty state CTA). */
     onConnect?: () => void;
+    /** Tear down the remote session (remote pane, connected). */
+    onDisconnect?: () => void;
     /** Create a directory in this pane. */
     onCreateFolder?: (name: string) => void;
     /** Rename an entry in this pane. */
@@ -322,6 +326,13 @@
     {/if}
 
     <div class="ml-auto flex items-center gap-0.5">
+      {#if !isLocal && onDisconnect && !disconnected}
+        <Tooltip label="Disconnect" side="bottom">
+          <Button variant="ghost" size="icon-sm" aria-label="Disconnect" onclick={onDisconnect}>
+            <IconUnplug size={14} />
+          </Button>
+        </Tooltip>
+      {/if}
       <Tooltip label="Up">
         <Button variant="ghost" size="icon-sm" aria-label="Go to parent folder" onclick={() => onNavigate?.('..')}>
           <IconHome size={14} />
