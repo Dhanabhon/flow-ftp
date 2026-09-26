@@ -49,6 +49,8 @@ class AppState {
   localSelected = $state<Set<string>>(new Set());
   remoteSelected = $state<Set<string>>(new Set());
   showHidden = $state(false);
+  /** True while a remote listing request is in flight (spinner in the pane). */
+  remoteLoading = $state(false);
   /** Last pane-level error per side, null when clear. */
   errors = $state<{ local: string | null; remote: string | null }>({
     local: null,

@@ -7,11 +7,17 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::time::Duration;
 
 use flow_core::{
     ConnectionId, Credentials, CoreError, CoreResult, FilePath, Protocol, RemoteFile, RemoteFs,
 };
 use flow_protocols::{FtpsFs, FtpFs, HostKeyPolicy, SftpFs};
+
+/// Ceiling for a single remote operation. A stalled server (dead data
+/// connection, wedged control stream) surfaces as a timeout instead of a
+/// spinner that never stops.
+const OP_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Build the adapter matching a protocol. Host-key verification is
 /// development-mode for now (see the SFTP adapter docs); the known-hosts UX
@@ -64,7 +70,8 @@ impl ConnectionRegistry {
     }
 
     /// Tear down and remove a session. Unknown ids succeed silently so the
-    /// UI can disconnect stale state freely.
+    /// UI can disconnect stale state freely. The goodbye is bounded: a dead
+    /// socket must not hang the disconnect.
     pub async fn disconnect(&self, id: &ConnectionId) -> CoreResult<()> {
         if let Some(mut live) = self
             .live
@@ -72,7 +79,7 @@ impl ConnectionRegistry {
             .await
             .remove(id)
         {
-            live.adapter.disconnect().await?;
+            let _ = tokio::time::timeout(Duration::from_secs(5), live.adapter.disconnect()).await;
         }
         Ok(())
     }
@@ -109,9 +116,10 @@ impl ConnectionRegistry {
             .await
     }
 
-    /// Lock the registry, fetch the connection, and await the operation.
-    /// The boxed-future form sidesteps closure lifetime gymnastics while
-    /// keeping the registry lock held for the whole operation.
+    /// Lock the registry, fetch the connection, and await the operation
+    /// under [`OP_TIMEOUT`]. The boxed-future form sidesteps closure lifetime
+    /// gymnastics while keeping the registry lock held for the whole
+    /// operation.
     async fn locked<T>(
         &self,
         id: &ConnectionId,
@@ -121,7 +129,17 @@ impl ConnectionRegistry {
         let live = guard
             .get_mut(id)
             .ok_or_else(|| CoreError::Protocol("not connected".into()))?;
-        operation(live.adapter.as_mut()).await
+        match tokio::time::timeout(OP_TIMEOUT, operation(live.adapter.as_mut())).await {
+            Ok(result) => result,
+            Err(_elapsed) => {
+                // The session is mid-command with unread responses pending;
+                // its state can't be trusted. Drop it (as mainstream clients
+                // do) rather than let follow-up commands read desynced
+                // responses.
+                guard.remove(id);
+                Err(CoreError::Timeout(OP_TIMEOUT))
+            }
+        }
     }
 
     /// Register a pre-built adapter. Test-only: lets the bridge logic be
@@ -163,7 +181,13 @@ pub fn ipc_error(e: CoreError) -> IpcError {
         CoreError::Protocol(msg) => ("protocol", msg),
         CoreError::Io(msg) => ("io", msg),
         CoreError::InvalidPath(path) => ("invalid-path", format!("Invalid path: {path}")),
-        CoreError::Timeout(d) => ("timeout", format!("Timed out after {}s", d.as_secs())),
+        CoreError::Timeout(d) => (
+            "timeout",
+            format!(
+                "No response from the server within {}s. The session was closed — reconnect and try again.",
+                d.as_secs()
+            ),
+        ),
         CoreError::Transfer(msg) => ("transfer", msg),
     };
     IpcError {
@@ -182,10 +206,12 @@ mod tests {
     type BoxedAsyncWrite = Box<dyn tokio::io::AsyncWrite + Send + Unpin>;
 
     /// Mock adapter recording calls — proves the registry + dispatch path
-    /// without a network.
+    /// without a network. `hang` simulates a wedged server that never
+    /// answers a listing.
     struct MockFs {
         disconnected: bool,
         listed: Vec<FilePath>,
+        hang: bool,
     }
 
     #[async_trait]
@@ -198,6 +224,9 @@ mod tests {
             Ok(())
         }
         async fn list(&mut self, path: &FilePath) -> CoreResult<Vec<RemoteFile>> {
+            if self.hang {
+                tokio::time::sleep(Duration::from_secs(600)).await;
+            }
             self.listed.push(path.clone());
             Ok(vec![RemoteFile {
                 name: "entry.txt".into(),
@@ -277,6 +306,30 @@ mod tests {
         assert!(e.message.contains("password"), "message should suggest a fix");
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn stalled_operation_times_out_and_evicts_the_session() {
+        let registry = ConnectionRegistry::default();
+        let id = ConnectionId::new("hang-1");
+        registry
+            .insert_for_test(
+                id.clone(),
+                Box::new(MockFs {
+                    disconnected: false,
+                    listed: Vec::new(),
+                    hang: true,
+                }),
+            )
+            .await;
+
+        let result = registry.list(&id, FilePath::new("/")).await;
+        assert!(matches!(result, Err(CoreError::Timeout(_))));
+        assert_eq!(
+            registry.connected_count_now(),
+            0,
+            "a timed-out session must be evicted, not reused"
+        );
+    }
+
     #[tokio::test]
     async fn list_delegates_to_registered_adapter() {
         let registry = ConnectionRegistry::default();
@@ -287,6 +340,7 @@ mod tests {
                 Box::new(MockFs {
                     disconnected: false,
                     listed: Vec::new(),
+                    hang: false,
                 }),
             )
             .await;
@@ -306,6 +360,7 @@ mod tests {
         let mock = Box::new(MockFs {
             disconnected: false,
             listed: Vec::new(),
+            hang: false,
         });
         registry.insert_for_test(id.clone(), mock).await;
 
@@ -332,6 +387,7 @@ mod tests {
                 Box::new(MockFs {
                     disconnected: false,
                     listed: Vec::new(),
+                    hang: false,
                 }),
             )
             .await;

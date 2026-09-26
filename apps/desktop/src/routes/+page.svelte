@@ -4,6 +4,7 @@
     deleteRemote,
     enqueueTransfer,
     IS_TAURI,
+    IpcError,
     listLocal,
     listRemote,
     localHome,
@@ -116,6 +117,7 @@
     const path = app.remotePath;
     if (!connectionId) return;
     const seq = ++remoteListSeq;
+    app.remoteLoading = true;
     try {
       const files = await listRemote(connectionId, path);
       if (seq !== remoteListSeq) return;
@@ -127,6 +129,9 @@
       app.remoteFiles = [];
       app.remoteSelected = new Set();
       if (app.inspector?.side === 'remote') app.inspector = null;
+      reactToRemoteOpError(e, connectionId);
+    } finally {
+      if (seq === remoteListSeq) app.remoteLoading = false;
     }
   }
 
@@ -135,6 +140,7 @@
     const connectionId = app.activeConnectionId;
     if (!connectionId || target === app.remotePath) return;
     const seq = ++remoteListSeq;
+    app.remoteLoading = true;
     try {
       const files = await listRemote(connectionId, target);
       if (seq !== remoteListSeq) return;
@@ -147,6 +153,19 @@
       if (seq !== remoteListSeq) return;
       // Stay in the current folder; surface why the target is unavailable.
       app.errors.remote = e instanceof Error ? e.message : String(e);
+      reactToRemoteOpError(e, connectionId);
+    } finally {
+      if (seq === remoteListSeq) app.remoteLoading = false;
+    }
+  }
+
+  /** A timeout closes the server-side session (see `OP_TIMEOUT` in the
+   * bridge), so the client must drop its connected state too — otherwise
+   * every later op fails on an already-evicted connection. */
+  function reactToRemoteOpError(e: unknown, connectionId: string) {
+    if (e instanceof IpcError && e.code === 'timeout') {
+      app.markDisconnected(connectionId);
+      app.notify('danger', 'Connection lost', e.message);
     }
   }
 
@@ -170,6 +189,7 @@
     app.remoteFiles = [];
     app.remoteSelected = new Set();
     app.errors.remote = null;
+    app.remoteLoading = false;
     if (app.inspector?.side === 'remote') app.inspector = null;
     if (!connectionId) return;
     app.remotePath = '/';
@@ -578,6 +598,7 @@
           selected={app.remoteSelected}
           onSelect={app.selectRemote.bind(app)}
           showHidden={app.showHidden}
+          loading={app.remoteLoading}
           connectionName={app.activeConnection?.name}
           onNavigate={navigateRemote}
           onNavigateTo={(path) => void goRemote(path)}

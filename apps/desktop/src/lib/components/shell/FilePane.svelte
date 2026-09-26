@@ -21,6 +21,7 @@
     IconUnplug,
     IconUpload,
     IconDownload,
+    IconLoader,
   } from '$lib/components/icons';
   import Button from '$lib/components/ui/button.svelte';
   import Tooltip from '$lib/components/ui/tooltip.svelte';
@@ -33,6 +34,7 @@
     selected,
     onSelect,
     showHidden = false,
+    loading = false,
     connectionName,
     onNavigate,
     onNavigateTo,
@@ -58,6 +60,8 @@
     selected: Set<string>;
     onSelect: (name: string, additive?: boolean) => void;
     showHidden?: boolean;
+    /** A listing request is in flight: hold the current rows, show a spinner. */
+    loading?: boolean;
     connectionName?: string;
     /** Double-click a directory row -> navigate into it. */
     onNavigate?: (name: string) => void;
@@ -338,9 +342,13 @@
           <IconHome size={14} />
         </Button>
       </Tooltip>
-      <Tooltip label="Refresh">
-        <Button variant="ghost" size="icon-sm" aria-label="Refresh" onclick={onRefresh}>
-          <IconRefresh size={14} />
+      <Tooltip label={loading ? 'Loading…' : 'Refresh'} side="bottom">
+        <Button variant="ghost" size="icon-sm" aria-label="Refresh" disabled={loading} onclick={onRefresh}>
+          {#if loading}
+            <IconLoader size={14} class="animate-spin" />
+          {:else}
+            <IconRefresh size={14} />
+          {/if}
         </Button>
       </Tooltip>
       <Tooltip label="New folder">
@@ -426,7 +434,12 @@
   </div>
 
   <!-- File rows -->
-  <div class="min-h-0 flex-1 overflow-y-auto py-0.5">
+  <div
+    class="min-h-0 flex-1 overflow-y-auto py-0.5 transition-opacity"
+    class:opacity-60={loading}
+    class:pointer-events-none={loading}
+    aria-busy={loading}
+  >
     {#if creatingFolder}
       <div class="flex w-full items-center gap-2 bg-bg-active px-3 py-1">
         <IconFolder size={15} class="shrink-0 text-accent-text" />
@@ -510,6 +523,11 @@
           <IconZap size={13} /> Connect
         </Button>
       </div>
+    {:else if loading && sorted.length === 0}
+      <div class="flex h-full flex-col items-center justify-center gap-3 py-12 text-fg-subtle">
+        <IconLoader size={22} class="animate-spin opacity-60" />
+        <p class="text-sm">Loading…</p>
+      </div>
     {:else if sorted.length === 0}
       <div class="flex h-full flex-col items-center justify-center gap-2 py-12 text-fg-faint">
         <IconFolder size={28} class="opacity-40" />
@@ -522,6 +540,8 @@
   <div class="flex h-9 items-center gap-1.5 border-t border-border bg-bg/40 px-2.5">
     {#if error}
       <span class="min-w-0 flex-1 truncate text-xs text-danger" title={error}>{error}</span>
+    {:else if loading}
+      <span class="min-w-0 flex-1 truncate text-xs text-fg-subtle">Loading…</span>
     {/if}
     {#if isLocal}
       <Button variant="default" size="sm" class="ml-auto shrink-0" onclick={() => onUpload?.()}>
