@@ -1,174 +1,78 @@
 # FlowFTP
 
-> The most beautiful and enjoyable open-source FTP/SFTP client for macOS.
+A dual-pane FTP/SFTP client for macOS, built with Tauri 2, SvelteKit, and Rust. Open source, MIT licensed, and designed to feel like Finder rather than FileZilla.
 
-FlowFTP is a **Remote Workspace** designed for developers on macOS. It combines the calm of Finder, the speed of Raycast, the polish of Linear, and the power of VSCode into one native-feeling file transfer application.
+## Status
 
-Three principles guide every decision: **Calm · Fast · Predictable.**
+Under active development. The core is real and working: FTP, FTPS, and SFTP connections, a resumable transfer queue, folder sync with conflict resolution, remote editing, and saved connection profiles. What you see in the app is wired to the Rust backend, not a mockup.
 
----
+Not done yet: code signing and notarization, auto-update, cloud storage backends, tabs, and a remote terminal. See ROADMAP.md for the full list.
 
-## ✨ Features
+## Features
 
-- **Dual-pane file browser** — Finder-style local ↔ remote navigation with drag & drop, breadcrumbs, and sort.
-- **Multi-protocol** — FTP, FTPS, and SFTP with first-class support.
-- **Smart Sync** — Preview every upload, download, delete, and conflict *before* it happens.
-- **Transfer queue** — Pause, resume, retry, and live speed/ETA. Resumable transfers out of the box.
-- **Command Palette** (⌘K) — Spotlight-style search for every action.
-- **Quick Look preview** — Inspect images, text, JSON, YAML without downloading.
-- **macOS Keychain** — Credentials never touch disk; stored securely in the OS keychain.
-- **Keyboard-first** — Every action reachable from the keyboard.
-- **Native macOS feel** — Dark theme, traffic-light spacing, thin scrollbars, glass blur.
+- Dual-pane file browser for local and remote folders, with drag targets, breadcrumbs, sorting, and hidden-file toggle
+- FTP, FTPS (explicit and implicit TLS), and SFTP adapters behind one shared interface, so the rest of the app never cares which protocol is active
+- Transfer queue with pause, resume from byte offsets, retry with backoff, live speed and ETA, and a bandwidth cap you can change while transfers run
+- Smart Sync that compares two folder trees, shows every proposed change before anything moves, and lets you resolve conflicts by picking a side
+- Remote editing: double-click a remote file, it opens in your system editor, and saving re-uploads it
+- Saved connection profiles in the app config dir, with passwords in the macOS keychain, never in plain files
+- Command palette (Cmd+K) for navigation and actions
+- Light and dark theme, with a follow-system option
 
-> **Status:** Early development. The UI is a working mock built on the design language in [`DESIGN.md`](./DESIGN.md).
+## Requirements
 
----
+- Node.js 20 or newer, pnpm 9 or newer
+- Rust stable, via rustup
+- macOS 11 or newer (Apple Silicon first). Tauri's build prerequisites apply.
 
-## 🧱 Tech Stack
+## Getting started
 
-**Frontend**
-- [Tauri 2](https://v2.tauri.app/) — native shell, Rust backend
-- [SvelteKit 2](https://kit.svelte.dev/) + [Svelte 5](https://svelte.dev/) (runes)
-- [Tailwind CSS v4](https://tailwindcss.com/) — CSS-first theming
-- shadcn-style components (`tailwind-variants`, `tailwind-merge`, `bits-ui`)
-- [TanStack Query](https://tanstack.com/query/latest) — async state
-- [lucide-svelte](https://lucide.dev/) — icons
-
-**Backend / Core (Rust)**
-- [Tokio](https://tokio.rs/) async runtime
-- [`suppaftp`](https://crates.io/crates/suppaftp) — FTP / FTPS
-- [`russh`](https://crates.io/crates/russh) / `async-ssh2-tokio` — SFTP
-- [`keyring-rs`](https://crates.io/crates/keyring) — macOS Keychain
-- [`notify`](https://crates.io/crates/notify) — local folder watching
-- [`walkdir`](https://crates.io/crates/walkdir) — file tree scanning
-- `serde` + `toml` / `json` — configuration
-
-**macOS Integration**
-- Keychain credential storage · Native menu bar · Finder-style drag & drop · Quick Look preview · Spotlight-style command palette · Notarization + DMG packaging
-
----
-
-## 📁 Project Structure
-
-This is a **pnpm + Cargo monorepo**. The frontend and Rust core live side by side so the Tauri app can call directly into the protocol crates.
-
-```
-flow-ftp/
-├── apps/
-│   └── desktop/          # Tauri 2 app (SvelteKit frontend)
-├── crates/
-│   ├── core/             # domain logic
-│   ├── protocols/        # ftp, sftp, ftps
-│   ├── transfer/         # queue, retry, resume
-│   ├── sync/             # folder compare / sync
-│   └── keychain/         # secure credential storage
-├── packages/
-│   └── ui/               # shared UI components
-├── DESIGN.md             # design language & UX principles
-├── pnpm-workspace.yaml
-└── package.json
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Node.js** ≥ 20 and **pnpm** ≥ 9
-- **Rust** (stable) via [rustup](https://rustup.rs/)
-- **Tauri 2 prerequisites** for macOS — see the [Tauri setup guide](https://v2.tauri.app/start/prerequisites/)
-
-### Install & run
-
-```bash
-# from the repo root — installs the whole workspace
+```sh
 pnpm install
-
-# start the frontend dev server (Vite on :1420)
-pnpm dev
+pnpm dev          # frontend only, in a browser, with mock data
+pnpm tauri dev    # the real native app
 ```
 
-Then open <http://localhost:1420> to view the UI mock.
+`pnpm dev` runs the UI in a plain browser with mock data, which is handy for layout work. `pnpm tauri dev` builds the Rust side and opens the native window; everything is live there.
 
-### Build for production
+To check types and run the test suites:
 
-```bash
-pnpm build           # builds the frontend
+```sh
+pnpm check            # svelte-check
+cargo test --workspace
 ```
 
-### Type-check
+Protocol integration tests dial real servers and are skipped by default. Set `FLOW_FTP_*` or `FLOW_SFTP_*` environment variables and run them with `-- --ignored` if you have a server to test against. See `crates/protocols/tests/` for the variable names.
 
-```bash
-pnpm check           # svelte-check across the workspace
-```
-
-### Run as a native app (Tauri)
-
-> Requires the Rust crates and `src-tauri/` config to be scaffolded first.
-
-```bash
-pnpm tauri dev       # native window with hot reload
-pnpm tauri build     # notarized .app / .dmg
-```
-
----
-
-## ⌨️ Keyboard Shortcuts
+## Keyboard shortcuts
 
 | Action | Shortcut |
 | --- | --- |
-| Command Palette | `⌘ K` |
-| Quick Connect | `⌘ K` → "Quick Connect" |
-| Synchronize Folder | `⌘ ⇧ S` |
-| Upload files | `⌘ ⇧ U` |
-| Download selected | `⌘ ⇧ D` |
-| Toggle hidden files | `⌘ ⇧ .` |
-| Switch view (Connections / Transfers / Sync / History) | `⌘ 1` – `⌘ 4` |
-| Settings | `⌘ ,` |
-| Reconnect | `⌘ R` |
+| Command palette | Cmd K |
+| New connection | Cmd N |
+| Go to browser | Cmd 1 |
+| Go to transfers | Cmd 2 |
+| Synchronize folders | Cmd Shift S |
+| Toggle hidden files | Cmd Shift . |
 
----
+## Project layout
 
-## 🎨 Design Language
+```
+apps/desktop/       Tauri app: SvelteKit frontend plus the Rust command bridge
+crates/core/        domain types and the RemoteFs trait
+crates/protocols/   FTP, FTPS, and SFTP adapters
+crates/transfer/    queue, retry, resume, progress, rate limiting
+crates/sync/        folder compare
+crates/keychain/    macOS keychain storage for credentials
+packages/ui/        shared UI components (empty for now)
+```
 
-FlowFTP follows a deliberate design philosophy — *Calm, Fast, Predictable* — built on the Apple Human Interface Guidelines with influences from Linear and Raycast.
+The dependency rule is one-way: UI calls the application layer, the application layer calls the domain, and adapters implement domain traits. ARCHITECTURE.md explains the layering, DESIGN.md holds the design language, and AGENTS.md documents the conventions for AI coding agents.
 
-- **Content first** — the files are the product; UI never competes with them.
-- **Progressive disclosure** — beginners see Connect · Browse · Upload · Download; power users discover Sync, Compare, Terminal, and the Command Palette.
-- **Zero fear** — dangerous actions always show *Preview → Confirm → Execute*.
-- **Never intrusive** — small toasts, no unnecessary modals, no raw protocol errors.
+## Contributing
 
-The full specification — colors, typography, spacing scale, window layout, motion timing, and UX anti-patterns — lives in [`DESIGN.md`](./DESIGN.md).
+PRs welcome. Conventional Commits, `pnpm check` and `cargo test` green before you push. CONTRIBUTING.md has the details.
 
----
+## License
 
-## 📦 Workspace Scripts
-
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start the desktop frontend dev server |
-| `pnpm build` | Production build |
-| `pnpm preview` | Preview the production build |
-| `pnpm check` | Run `svelte-check` type checking |
-| `pnpm tauri` | Pass-through to the Tauri CLI |
-
-Individual workspace packages can be targeted with `pnpm --filter @flow-ftp/desktop <script>`.
-
----
-
-## 🗺 Roadmap
-
-- Remote Terminal & SSH sessions
-- Folder Compare & Diff Viewer
-- Git status overlay
-- Cloud storage backends (S3, R2, Backblaze, Dropbox, Google Drive)
-- Multiple tabs & workspace profiles
-- Deploy pipelines & remote code editor
-- Plugin marketplace
-
----
-
-## 📄 License
-
-See [`LICENSE`](./LICENSE).
+MIT. See LICENSE.
