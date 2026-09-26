@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * Lightweight tooltip — shows on hover with a short delay.
-   * Pure CSS positioning (above the trigger by default).
-   * For complex positioning, swap in bits-ui's Popper.
+   * Lightweight tooltip — shows on hover or keyboard focus, with a short
+   * delay. Pure CSS positioning (above the trigger by default). For complex
+   * positioning, swap in bits-ui's Popper.
    */
   import { cn } from '$lib/utils';
   import type { Snippet } from 'svelte';
@@ -36,6 +36,7 @@
       'pointer-events-none absolute z-50 whitespace-nowrap rounded-md border border-border bg-bg-elevated px-2 py-1 text-xs text-fg shadow-md',
       'opacity-0 scale-95 transition-all duration-150',
       'group-hover/tt:opacity-100 group-hover/tt:scale-100 group-hover/tt:delay-200',
+      'group-focus-within/tt:opacity-100 group-focus-within/tt:scale-100 group-focus-within/tt:delay-200',
       pos,
       className
     )}

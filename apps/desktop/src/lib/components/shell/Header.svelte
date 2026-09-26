@@ -71,12 +71,12 @@
 
   <!-- Right cluster -->
   <div class="no-drag relative z-10 flex items-center gap-1">
-    <Tooltip label="Quick Connect">
+    <Tooltip label="Quick Connect" side="bottom">
       <Button variant="ghost" size="icon-sm" aria-label="Quick Connect" onclick={() => (app.quickConnectOpen = true)}>
         <IconZap size={15} />
       </Button>
     </Tooltip>
-    <Tooltip label="New connection">
+    <Tooltip label="New connection" side="bottom">
       <Button variant="ghost" size="icon-sm" aria-label="New connection" onclick={() => (app.quickConnectOpen = true)}>
         <IconPlus size={15} />
       </Button>
