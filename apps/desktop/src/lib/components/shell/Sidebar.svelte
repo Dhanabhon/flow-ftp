@@ -258,6 +258,7 @@
 
 <Modal
   open={deletePending !== null}
+  center
   title="Delete {deletePending?.name ?? 'connection'}?"
   description="Removes the saved connection. A stored keychain password for it is kept until you delete it there."
   width="sm"

@@ -9,6 +9,7 @@
     title = '',
     description = '',
     width = 'md',
+    center = false,
     class: className,
     children,
     footer
@@ -17,6 +18,8 @@
     title?: string;
     description?: string;
     width?: 'sm' | 'md' | 'lg' | 'xl';
+    /** Center vertically in the window (for compact confirmations). */
+    center?: boolean;
     class?: string;
     children: Snippet;
     footer?: Snippet;
@@ -37,7 +40,12 @@
 <svelte:window on:keydown={onKeydown} />
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-start justify-center p-6 pt-[12vh]">
+  <div
+    class={cn(
+      'fixed inset-0 z-50 flex justify-center p-6',
+      center ? 'items-center' : 'items-start pt-[12vh]'
+    )}
+  >
     <!-- backdrop -->
     <div
       class="absolute inset-0 bg-black/60 backdrop-blur-sm"

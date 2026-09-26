@@ -602,6 +602,7 @@
   open={deleteConfirm !== null}
   title="Delete {deleteConfirm?.names.length ?? 0}
     item{deleteConfirm?.names.length === 1 ? '' : 's'}?"
+  center
   description={deleteConfirm
     ? `${deleteConfirm.side === 'remote' ? `${app.activeConnection?.name ?? ''} · ` : ''}${deleteConfirm.side === 'remote' ? app.remotePath : app.localPath} — this cannot be undone.`
     : 'This cannot be undone.'}
@@ -623,6 +624,7 @@
   open={overwriteConfirm !== null}
   title="Replace {overwriteConfirm?.items.length ?? 0}
     file{overwriteConfirm?.items.length === 1 ? '' : 's'}?"
+  center
   description={overwriteConfirm?.direction === 'upload'
     ? `These files already exist in ${app.activeConnection?.name ?? 'the server'}:${overwriteConfirm?.targetDir}. Uploading replaces the remote copies. The local files are not changed.`
     : `These files already exist in ${overwriteConfirm?.targetDir}. Downloading replaces the local copies. The remote files are not changed.`}

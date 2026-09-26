@@ -39,7 +39,7 @@
   });
 </script>
 
-<Modal bind:open title="Quit FlowFTP?" width="sm">
+<Modal bind:open title="Quit FlowFTP?" width="sm" center>
   <div class="flex items-start gap-3">
     <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-warning/15">
       <IconAlert size={20} class="text-warning" />
