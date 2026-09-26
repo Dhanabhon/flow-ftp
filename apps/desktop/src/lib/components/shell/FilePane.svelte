@@ -297,7 +297,7 @@
 
 <section
   class={cn(
-    'flex min-h-0 flex-1 flex-col bg-bg-elevated transition-shadow',
+    'flex min-h-0 min-w-0 flex-1 flex-col bg-bg-elevated transition-shadow',
     isLocal && 'border-r',
     (paneDragOver || externalDragOver) && 'ring-2 ring-inset ring-accent bg-accent/5'
   )}
@@ -369,7 +369,7 @@
   </div>
 
   <!-- Breadcrumb -->
-  <div class="flex h-8 items-center gap-0.5 border-b border-border px-2.5 text-xs text-fg-subtle">
+  <div class="flex h-8 items-center gap-0.5 overflow-hidden border-b border-border px-2.5 text-xs text-fg-subtle">
     <button
       class="rounded px-1.5 py-0.5 hover:bg-bg-hover hover:text-fg"
       onclick={() => onNavigateTo?.('/')}
@@ -474,17 +474,17 @@
             autofocus
           />
         {:else}
-          <span class={cn('flex-1 truncate', f.kind === 'directory' && 'font-medium')}>
+          <span class={cn('min-w-0 flex-1 truncate', f.kind === 'directory' && 'font-medium')}>
             {f.name}
           </span>
         {/if}
         <span class="w-20 shrink-0 text-right font-mono text-xs text-fg-subtle">
           {f.kind === 'directory' ? '—' : formatBytes(f.size)}
         </span>
-        <span class="w-28 shrink-0 text-right text-xs text-fg-subtle">
+        <span class="w-24 shrink-0 text-right text-xs text-fg-subtle">
           {f.modified ? formatDate(f.modified) : '—'}
         </span>
-        <span class="w-16 shrink-0 text-right font-mono text-[11px] text-fg-subtle">
+        <span class="hidden min-[1280px]:block w-16 shrink-0 text-right font-mono text-[11px] text-fg-subtle">
           {f.permissions ?? '—'}
         </span>
       </button>
@@ -510,14 +510,14 @@
   <!-- Action footer -->
   <div class="flex h-9 items-center gap-1.5 border-t border-border bg-bg/40 px-2.5">
     {#if error}
-      <span class="truncate text-xs text-danger" title={error}>{error}</span>
+      <span class="min-w-0 flex-1 truncate text-xs text-danger" title={error}>{error}</span>
     {/if}
     {#if isLocal}
-      <Button variant="default" size="sm" class="ml-auto" onclick={() => onUpload?.()}>
+      <Button variant="default" size="sm" class="ml-auto shrink-0" onclick={() => onUpload?.()}>
         <IconUpload size={13} /> Upload
       </Button>
     {:else}
-      <Button variant="default" size="sm" class="ml-auto" onclick={() => onDownload?.()}>
+      <Button variant="default" size="sm" class="ml-auto shrink-0" onclick={() => onDownload?.()}>
         <IconDownload size={13} /> Download
       </Button>
     {/if}

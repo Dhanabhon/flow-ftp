@@ -95,6 +95,8 @@
     void app.refreshTick;
     if (!connectionId) {
       app.remoteFiles = [];
+      app.remoteSelected = new Set();
+      app.errors.remote = null;
       return;
     }
     listRemote(connectionId, path)
