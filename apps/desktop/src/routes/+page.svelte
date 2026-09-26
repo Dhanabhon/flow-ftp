@@ -52,10 +52,11 @@
 
   // ── Live data wiring (Tauri only; browser dev stays on mocks) ─────────────
 
-  // Restore the pane split from the previous session.
+  // Restore the pane split from the previous session (old unclamped key
+  // from the first splitter build is ignored).
   if (browser) {
-    const saved = Number(localStorage.getItem('flowftp:pane-ratio'));
-    if (!Number.isNaN(saved) && saved > 0) app.setPaneRatio(saved);
+    const saved = Number(localStorage.getItem('flowftp:pane-ratio-v2'));
+    if (!Number.isNaN(saved) && saved >= 0.15 && saved <= 0.85) app.setPaneRatio(saved);
   }
 
   // Load saved connection profiles (browser dev keeps mocks).
@@ -265,8 +266,9 @@
 
   // ── Pane splitter ─────────────────────────────────────────────────────────
 
-  /** Width of the inspector column (w-72 = 288px) plus its border. */
+  /** Inspector column (w-72 = 288px) plus its border, and the 6px splitter. */
   const INSPECTOR_WIDTH = 289;
+  const SPLITTER_WIDTH = 6;
   let paneRow = $state<HTMLDivElement | null>(null);
   let draggingPane = $state(false);
 
@@ -278,7 +280,7 @@
   function movePaneDrag(e: PointerEvent) {
     if (!draggingPane || !paneRow) return;
     const rect = paneRow.getBoundingClientRect();
-    const area = rect.width - INSPECTOR_WIDTH;
+    const area = rect.width - INSPECTOR_WIDTH - SPLITTER_WIDTH;
     if (area <= 0) return;
     app.setPaneRatio((e.clientX - rect.left) / area);
   }
@@ -286,13 +288,13 @@
   function endPaneDrag() {
     if (!draggingPane) return;
     draggingPane = false;
-    localStorage.setItem('flowftp:pane-ratio', String(app.paneRatio));
+    localStorage.setItem('flowftp:pane-ratio-v2', String(app.paneRatio));
   }
 
   /** Double-click the splitter to restore the even split. */
   function resetPaneSplit() {
     app.setPaneRatio(0.5);
-    localStorage.setItem('flowftp:pane-ratio', '0.5');
+    localStorage.setItem('flowftp:pane-ratio-v2', '0.5');
   }
 
   function nudgePaneSplit(e: KeyboardEvent) {
@@ -461,8 +463,8 @@
       {:else}
       <div class="flex min-h-0 flex-1" bind:this={paneRow}>
         <div
-          class="flex min-h-0 min-w-0"
-          style="width: calc((100% - {INSPECTOR_WIDTH}px) * {app.paneRatio})"
+          class="flex min-h-0"
+          style="flex: 0 1 calc((100% - {INSPECTOR_WIDTH + 6}px) * {app.paneRatio}); min-width: 300px"
         >
         <FilePane
           side="local"
@@ -508,7 +510,7 @@
           ondblclick={resetPaneSplit}
           onkeydown={nudgePaneSplit}
         ></div>
-        <div class="flex min-w-0 flex-1" bind:this={remotePaneEl}>
+        <div class="flex min-w-0 flex-1" style="min-width: 260px" bind:this={remotePaneEl}>
         <FilePane
           side="remote"
           title="Remote"
