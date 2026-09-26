@@ -81,7 +81,13 @@ import { theme } from '$lib/stores/theme.svelte';
   }
 
   function runCommand(cmd: Command) {
-    if (cmd.id === 'quick-connect' || cmd.id === 'new-conn') app.quickConnectOpen = true;
+    if (cmd.id === 'quick-connect') {
+      app.quickConnectMode = 'quick';
+      app.quickConnectOpen = true;
+    } else if (cmd.id === 'new-conn') {
+      app.quickConnectMode = 'new';
+      app.quickConnectOpen = true;
+    }
     else if (cmd.id === 'sync') app.syncOpen = true;
     else if (cmd.id === 'go-browser') app.setView('connections');
     else if (cmd.id === 'go-transfers') app.setView('transfers');

@@ -14,6 +14,7 @@
   let username = $state('');
   let password = $state('');
   let saveToKeychain = $state(true);
+  let saveProfile = $state(true);
   let showPassword = $state(false);
   let connecting = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -64,8 +65,9 @@
         saveKeychain: saveToKeychain
       });
       app.upsertConnection(connection);
-      // Persist the profile (status normalizes to disconnected on disk).
-      if (IS_TAURI) {
+      // Persist the profile only when this is a New Connection (and wanted).
+      // A Quick Connect stays ad-hoc: active now, gone from the sidebar later.
+      if (IS_TAURI && app.quickConnectMode === 'new' && saveProfile) {
         profileSave(connection)
           .then((profiles) => (app.connections = profiles))
           .catch(() => {});
@@ -86,8 +88,10 @@
 
 <Modal
   bind:open={app.quickConnectOpen}
-  title="Quick Connect"
-  description="Connect to a remote server. Credentials are stored in macOS Keychain."
+  title={app.quickConnectMode === 'new' ? 'New Connection' : 'Quick Connect'}
+  description={app.quickConnectMode === 'new'
+    ? 'Set up a saved connection. The profile is kept for reuse; the password goes into macOS Keychain.'
+    : 'Connect right now without saving the connection. The password can still go into macOS Keychain.'}
   width="md"
 >
   <!-- Protocol selector -->
@@ -175,6 +179,20 @@
       </div>
     </label>
   </div>
+
+  <!-- Save profile: New Connection mode only (Quick Connect is ad-hoc) -->
+  {#if app.quickConnectMode === 'new'}
+    <label class="mb-3 flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-bg-panel p-3">
+      <input type="checkbox" bind:checked={saveProfile} class="h-4 w-4 accent-[var(--color-accent)]" />
+      <div class="flex-1">
+        <div class="flex items-center gap-1.5">
+          <IconServer size={13} class="text-accent-text" />
+          <span class="text-sm font-medium text-fg">Save this connection</span>
+        </div>
+        <p class="text-[11px] text-fg-subtle">Keep it in the sidebar for one-click reconnects.</p>
+      </div>
+    </label>
+  {/if}
 
   <!-- Keychain toggle -->
   <label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-bg-panel p-3">

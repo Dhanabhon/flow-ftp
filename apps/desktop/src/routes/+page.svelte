@@ -40,6 +40,7 @@
       app.setView('transfers');
     } else if (mod && e.key.toLowerCase() === 'n') {
       e.preventDefault();
+      app.quickConnectMode = 'new';
       app.quickConnectOpen = true;
     } else if (mod && e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();

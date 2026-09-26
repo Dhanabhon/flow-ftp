@@ -20,6 +20,11 @@ class AppState {
   commandPaletteOpen = $state(false);
   quickConnectOpen = $state(false);
   syncOpen = $state(false);
+  /**
+   * Which entry point opened the connect form: an ad-hoc Quick Connect
+   * (nothing is saved) or a New Connection (profile persisted on success).
+   */
+  quickConnectMode = $state<'quick' | 'new'>('quick');
   /** Fields prefilling the Quick Connect form (from a saved profile). */
   quickConnectPrefill = $state<{
     protocol: Connection['protocol'];
