@@ -4,7 +4,6 @@
   import { IconSearch, IconPlus, IconCommand, IconZap } from '$lib/components/icons';
   import Tooltip from '$lib/components/ui/tooltip.svelte';
   import Button from '$lib/components/ui/button.svelte';
-  import Badge from '$lib/components/ui/badge.svelte';
   import ThemeToggle from '$lib/components/ui/theme-toggle.svelte';
 
   // Keyboard shortcuts for the whole app
@@ -84,11 +83,5 @@
 
     <ThemeToggle />
 
-    <div class="mx-1 h-5 w-px bg-border"></div>
-
-    <!-- Plan indicator -->
-    <Badge variant="accent" class="hidden sm:inline-flex">
-      <IconZap size={10} /> Pro
-    </Badge>
   </div>
 </header>
