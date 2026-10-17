@@ -102,7 +102,14 @@ jobs:
           VERSION: ${{ needs.release-check.outputs.version }}
           ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          pnpm --filter @flow-ftp/desktop tauri build --bundles app,dmg
+          # bundle_dmg.sh (hdiutil + Finder scripting) is flaky on some
+          # runners; one retry almost always clears it. The retry is cheap —
+          # compilation is cached, only the bundling reruns.
+          pnpm --filter @flow-ftp/desktop tauri build --bundles app,dmg || {
+            echo "::warning::DMG bundling failed once — retrying"
+            sleep 5
+            pnpm --filter @flow-ftp/desktop tauri build --bundles app,dmg
+          }
 
           shopt -s nullglob
           dmgs=(target/release/bundle/dmg/*.dmg)
