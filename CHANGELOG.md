@@ -2,6 +2,16 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.0] - 2026-10-17
+
+### Added
+
+- In-app Software Update: check for new versions from this repository's GitHub Releases, download with live progress, install, and relaunch — from the FlowFTP menu, the command palette, or the automatic launch check.
+
+### Notes
+
+- Downloads still trigger Gatekeeper's "unverified developer" dialog on first open until Developer ID signing and notarization land (ROADMAP Phase 7). Use **Open Anyway** in Privacy & Security in the meantime.
+
 ## [1.1.0] - 2026-10-17
 
 ### Added

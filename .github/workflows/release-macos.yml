@@ -102,7 +102,7 @@ jobs:
           VERSION: ${{ needs.release-check.outputs.version }}
           ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          pnpm --filter @flow-ftp/desktop tauri build --bundles dmg
+          pnpm --filter @flow-ftp/desktop tauri build --bundles app,dmg
 
           shopt -s nullglob
           dmgs=(target/release/bundle/dmg/*.dmg)
