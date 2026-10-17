@@ -2,7 +2,7 @@
 
 All notable changes to FlowFTP are documented here.
 
-## [1.2.0] - 2026-10-17
+## [1.2.1] - 2026-10-17
 
 ### Added
 

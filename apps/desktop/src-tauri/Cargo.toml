@@ -1,6 +1,6 @@
 [package]
 name = "flow-ftp"
-version = "1.2.0"
+version = "1.2.1"
 description = "The most beautiful open-source FTP/SFTP client for macOS."
 authors = ["Tom Dhanabhon"]
 license = "MIT"
