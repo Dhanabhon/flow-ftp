@@ -175,3 +175,7 @@ tmp/
 temp/
 *.bak
 *.tmp
+
+# Local agent/plugin state
+.mimosa/
+.zcode/
