@@ -51,6 +51,7 @@
     onDelete,
     error = null,
     externalDragOver = false,
+    externalDropFolder = null,
     internalDropTarget = null
   }: {
     side: 'local' | 'remote';
@@ -91,6 +92,8 @@
     error?: string | null;
     /** External drag hovering (Finder drop onto the remote pane). */
     externalDragOver?: boolean;
+    /** Remote folder row targeted by an external (Finder) drag. */
+    externalDropFolder?: string | null;
     /** Internal file drag destination, coordinated by the page. */
     internalDropTarget?: { side: 'local' | 'remote'; folder: string | null } | null;
   } = $props();
@@ -358,7 +361,8 @@
         class={cn(
           'group flex w-full items-center gap-2 px-3 py-1 text-left text-sm transition-colors',
           isSel ? 'bg-bg-active text-fg' : 'text-fg-muted hover:bg-bg-hover',
-          internalDropTarget?.side === side && internalDropTarget.folder === f.name &&
+          ((internalDropTarget?.side === side && internalDropTarget.folder === f.name) ||
+            externalDropFolder === f.name) &&
             'bg-accent/20 text-fg ring-2 ring-inset ring-accent/70 shadow-sm',
           'select-none'
         )}

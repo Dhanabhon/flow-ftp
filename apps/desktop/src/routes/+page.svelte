@@ -254,6 +254,16 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
   let remotePaneEl: HTMLDivElement | null = $state(null);
   /** Finder drag hovering over the remote pane. */
   let externalDragOver = $state(false);
+  /** Remote folder row under a Finder drag, when one is targeted. */
+  let externalDropFolder = $state<string | null>(null);
+
+  /** The remote folder row under a point, if any (CSS-pixel coordinates). */
+  function remoteFolderAt(x: number, y: number): string | null {
+    const row = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>('[data-drop-folder]');
+    return row?.dataset.dropFolder ?? null;
+  }
 
   /**
    * Queue uploads, checking the destination directory for files that would
@@ -342,6 +352,7 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
         const payload = event.payload;
         if (payload.type === 'leave') {
           externalDragOver = false;
+          externalDropFolder = null;
           return;
         }
         const rect = remotePaneEl?.getBoundingClientRect();
@@ -355,18 +366,23 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
           x <= rect.right &&
           y >= rect.top &&
           y <= rect.bottom;
+        const folder = inside ? remoteFolderAt(x, y) : null;
 
         if (payload.type === 'enter' || payload.type === 'over') {
           externalDragOver = inside;
+          externalDropFolder = folder;
         } else {
           // drop
           externalDragOver = false;
+          externalDropFolder = null;
           if (inside && payload.paths.length > 0) {
+            const targetDir = folder ? joinPath(app.remotePath, folder) : app.remotePath;
             beginUploads(
               payload.paths.map((localPath) => ({
                 localPath,
                 fileName: localPath.split('/').pop() ?? localPath
-              }))
+              })),
+              targetDir
             );
           }
         }
@@ -802,6 +818,7 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
           internalDropTarget={internalDropTarget}
           onDisconnect={() => app.disconnectActive()}
           externalDragOver={externalDragOver}
+          externalDropFolder={externalDropFolder}
           error={app.errors.remote}
           />
         </div>
