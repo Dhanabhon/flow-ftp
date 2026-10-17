@@ -1,0 +1,15 @@
+[package]
+name = "flow-sync"
+description = "FlowFTP folder compare — diffs two directory snapshots into a sync plan."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+flow-core = { path = "../core" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

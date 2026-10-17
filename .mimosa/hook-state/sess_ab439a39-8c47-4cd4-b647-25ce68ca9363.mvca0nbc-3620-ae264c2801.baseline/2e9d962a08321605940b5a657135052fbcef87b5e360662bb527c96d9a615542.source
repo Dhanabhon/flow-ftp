@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/keychain",
+    "crates/transfer",
+    "crates/sync",
+    "crates/protocols",
+    "apps/desktop/src-tauri",
+]
+
+# Shared package metadata inherited by every workspace member.
+[workspace.package]
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+authors = ["Tom Dhanabhon"]
+repository = "https://github.com/Dhanabhon/flow-ftp"
+version = "0.0.1"
+
+# Dependencies shared across multiple crates. Reference from a member with
+# `serde.workspace = true` to keep versions in lockstep.
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+# Dyn-safe async traits: the connection registry stores Box<dyn RemoteFs> so
+# the application layer is unit-testable with a mock adapter.
+async-trait = "0.1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

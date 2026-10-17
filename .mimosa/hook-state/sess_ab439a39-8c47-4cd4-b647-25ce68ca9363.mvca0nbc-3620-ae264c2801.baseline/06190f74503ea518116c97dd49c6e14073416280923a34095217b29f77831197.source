@@ -1,0 +1,157 @@
+name: Release macOS installers
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: check
+        name: Check release version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(python3 - <<'PY'
+          import json
+          import re
+          import tomllib
+          from pathlib import Path
+
+          package_version = json.loads(Path("apps/desktop/package.json").read_text())["version"]
+          tauri_version = json.loads(Path("apps/desktop/src-tauri/tauri.conf.json").read_text())["version"]
+          cargo_version = tomllib.loads(Path("apps/desktop/src-tauri/Cargo.toml").read_text())["package"]["version"]
+          versions = {package_version, tauri_version, cargo_version}
+
+          if len(versions) != 1:
+              raise SystemExit(f"App versions must match across manifests: {sorted(versions)}")
+
+          version = tauri_version
+          if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version):
+              raise SystemExit(f"Invalid release version: {version}")
+
+          print(version)
+          PY
+          )"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if ! grep -Fq -- "## [$VERSION]" CHANGELOG.md; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping release: CHANGELOG.md needs a heading for [$VERSION]."
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping release: tag v$VERSION already exists."
+            exit 0
+          else
+            result=$?
+            if [ "$result" -ne 2 ]; then
+              echo "Could not check whether tag v$VERSION exists." >&2
+              exit "$result"
+            fi
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "Release v$VERSION is ready."
+
+  build:
+    needs: release-check
+    if: needs.release-check.outputs.release == 'true'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - architecture: intel
+            runner: macos-15-intel
+          - architecture: apple-silicon
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build DMG
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+          VERSION: ${{ needs.release-check.outputs.version }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          pnpm --filter @flow-ftp/desktop tauri build --bundles dmg
+
+          shopt -s nullglob
+          dmgs=(target/release/bundle/dmg/*.dmg)
+          if [[ ${#dmgs[@]} -ne 1 ]]; then
+            echo "Expected one DMG, found ${#dmgs[@]}." >&2
+            exit 1
+          fi
+
+          mkdir -p release-assets
+          cp "${dmgs[0]}" "release-assets/FlowFTP-${VERSION}-macOS-${ARCHITECTURE}.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flowftp-dmg-${{ matrix.architecture }}
+          path: release-assets/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [release-check, build]
+    if: needs.release-check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: flowftp-release-v${{ needs.release-check.outputs.version }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flowftp-dmg-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub Release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.release-check.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping duplicate publish."
+            exit 0
+          fi
+
+          gh release create "$TAG" \
+            "release-assets/FlowFTP-${VERSION}-macOS-intel.dmg" \
+            "release-assets/FlowFTP-${VERSION}-macOS-apple-silicon.dmg" \
+            --title "FlowFTP $TAG" \
+            --generate-notes \
+            --target "$GITHUB_SHA"

@@ -1,0 +1,8 @@
+
+
+export const index = 2;
+let component_cache;
+export const component = async () => component_cache ??= (await import('../entries/pages/_page.svelte.js')).default;
+export const imports = ["_app/immutable/nodes/2.DOW9FTAc.js","_app/immutable/chunks/CLHZywie.js","_app/immutable/chunks/BEBH1ZqL.js","_app/immutable/chunks/CL60YP1E.js","_app/immutable/chunks/Db2vidFT.js","_app/immutable/chunks/COHt9Aig.js","_app/immutable/chunks/pgJVQ7gK.js","_app/immutable/chunks/Bz7ZDQBX.js","_app/immutable/chunks/Dj0ggwvl.js"];
+export const stylesheets = [];
+export const fonts = [];
