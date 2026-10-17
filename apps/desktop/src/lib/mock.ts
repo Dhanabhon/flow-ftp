@@ -176,6 +176,7 @@ export const mockCommands: Command[] = [
   { id: 'quick-connect', label: 'Quick Connect…', group: 'Actions', shortcut: ['⌘', 'K'], icon: 'zap' },
   { id: 'new-conn', label: 'New Connection…', group: 'Actions', shortcut: ['⌘', 'N'], icon: 'plus' },
   { id: 'sync', label: 'Synchronize Folder…', group: 'Actions', shortcut: ['⌘', '⇧', 'S'], icon: 'refresh-cw' },
+  { id: 'check-update', label: 'Check for Updates…', group: 'Actions', icon: 'download' },
   { id: 'go-browser', label: 'Go to Browser', group: 'Navigate', shortcut: ['⌘', '1'], icon: 'plug' },
   { id: 'go-transfers', label: 'Go to Transfers', group: 'Navigate', shortcut: ['⌘', '2'], icon: 'arrow-up-down' },
   { id: 'toggle-hidden', label: 'Toggle Hidden Files', group: 'View', shortcut: ['⌘', '⇧', '.'], icon: 'eye' },

@@ -22,11 +22,21 @@ pub fn run() {
     transcript::install();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(target_os = "macos")]
     let builder = builder.menu(|app| {
         use tauri::menu::{AboutMetadata, MenuBuilder, SubmenuBuilder};
+
+        let check_updates = tauri::menu::MenuItem::with_id(
+            app,
+            "check-updates",
+            "Check for Updates…",
+            true,
+            None::<&str>,
+        )?;
 
         let app_menu = SubmenuBuilder::new(app, "FlowFTP")
             .about_with_text(
@@ -42,6 +52,7 @@ pub fn run() {
                     ..Default::default()
                 }),
             )
+            .item(&check_updates)
             .separator()
             .hide_with_text("Hide FlowFTP")
             .hide_others()
@@ -95,6 +106,12 @@ pub fn run() {
                 let _ = window
                     .app_handle()
                     .emit("quit-confirm", QuitInfo { pending, connected });
+            }
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == "check-updates" {
+                // The themed in-app dialog drives the whole update flow.
+                let _ = app.emit("check-updates", ());
             }
         })
         .manage(ConnectionRegistry::default())

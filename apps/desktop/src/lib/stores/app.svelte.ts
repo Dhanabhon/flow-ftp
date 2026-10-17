@@ -73,6 +73,9 @@ class AppState {
   /** Transient notifications, bottom-right per DESIGN.md. */
   toasts = $state<Toast[]>([]);
 
+  /** The Software Update dialog (menu item / palette / auto-check toast). */
+  updateDialogOpen = $state(false);
+
   /** Push a toast; auto-dismisses after 4 seconds. */
   notify(kind: Toast['kind'], title: string, detail?: string) {
     const id = crypto.randomUUID();

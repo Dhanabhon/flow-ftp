@@ -399,6 +399,21 @@ export function onQuitConfirm(
   );
 }
 
+/** The "Check for Updates…" menu item asks the UI to open its update dialog. */
+export function onCheckUpdates(handler: () => void): Promise<() => void> {
+  if (!IS_TAURI) return Promise.resolve(() => {});
+  return import('@tauri-apps/api/event').then(({ listen }) =>
+    listen('check-updates', () => handler()).then((unlisten) => () => unlisten()),
+  );
+}
+
+/** The running application version. */
+export async function appVersion(): Promise<string> {
+  if (!IS_TAURI) return '0.0.0';
+  const { getVersion } = await import('@tauri-apps/api/app');
+  return getVersion();
+}
+
 /** Finish the quit after the user confirmed. */
 export function confirmQuit(): Promise<void> {
   return call<void>('confirm_quit');
@@ -471,4 +486,76 @@ export function syncExecute(params: {
     () => call<number>('sync_execute', params),
     () => params.diffs.length,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App updates (Tauri updater; see tauri.conf.json plugins.updater)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** What an available update looks like to the UI. */
+export interface UpdateInfo {
+  currentVersion: string;
+  version: string;
+  notes: string | null;
+}
+
+/** Progress for the download phase of an update. */
+export interface UpdateProgress {
+  /** Total bytes when the server reported it, else null. */
+  contentLength: number | null;
+  received: number;
+}
+
+/**
+ * Ask the endpoint whether a newer release exists. Returns null when the app
+ * is current. Dev builds fail signature/endpoint checks; callers surface the
+ * error instead of crashing.
+ */
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (!IS_TAURI) return null;
+  const { check } = await import('@tauri-apps/plugin-updater');
+  const update = await check();
+  if (!update) return null;
+  return {
+    currentVersion: update.currentVersion,
+    version: update.version,
+    notes: update.body ?? null,
+  };
+}
+
+/**
+ * Check again and install the update, streaming download progress. The app
+ * relaunches when the caller calls relaunchApp after installation.
+ */
+export async function installUpdate(
+  onProgress: (progress: UpdateProgress) => void
+): Promise<void> {
+  if (!IS_TAURI) return;
+  const { check } = await import('@tauri-apps/plugin-updater');
+  const update = await check();
+  if (!update) throw new Error('No update is available.');
+  let contentLength: number | null = null;
+  let received = 0;
+  await update.downloadAndInstall((event) => {
+    switch (event.event) {
+      case 'Started':
+        contentLength = event.data.contentLength ?? null;
+        onProgress({ contentLength, received });
+        break;
+      case 'Progress':
+        received += event.data.chunkLength;
+        onProgress({ contentLength, received });
+        break;
+      case 'Finished':
+        onProgress({ contentLength, received });
+        break;
+    }
+  });
+}
+
+/** Relaunch into the freshly installed version. */
+export async function relaunchApp(): Promise<void> {
+  if (!IS_TAURI) return;
+  const { relaunch } = await import('@tauri-apps/plugin-process');
+  await relaunch();
 }

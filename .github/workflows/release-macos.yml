@@ -94,9 +94,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build DMG
+      - name: Build DMG and updater artifacts
         env:
           APPLE_SIGNING_IDENTITY: "-"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VERSION: ${{ needs.release-check.outputs.version }}
           ARCHITECTURE: ${{ matrix.architecture }}
         run: |
@@ -109,13 +111,21 @@ jobs:
             exit 1
           fi
 
+          updaters=(target/release/bundle/macos/*.app.tar.gz)
+          if [[ ${#updaters[@]} -ne 1 ]]; then
+            echo "Expected one signed updater archive, found ${#updaters[@]}." >&2
+            exit 1
+          fi
+
           mkdir -p release-assets
           cp "${dmgs[0]}" "release-assets/FlowFTP-${VERSION}-macOS-${ARCHITECTURE}.dmg"
+          cp "${updaters[0]}" "release-assets/FlowFTP-${VERSION}-macOS-${ARCHITECTURE}.app.tar.gz"
+          cp "${updaters[0]}.sig" "release-assets/FlowFTP-${VERSION}-macOS-${ARCHITECTURE}.app.tar.gz.sig"
 
       - uses: actions/upload-artifact@v4
         with:
           name: flowftp-dmg-${{ matrix.architecture }}
-          path: release-assets/*.dmg
+          path: release-assets/*
           if-no-files-found: error
           retention-days: 7
 
@@ -152,6 +162,53 @@ jobs:
           gh release create "$TAG" \
             "release-assets/FlowFTP-${VERSION}-macOS-intel.dmg" \
             "release-assets/FlowFTP-${VERSION}-macOS-apple-silicon.dmg" \
+            "release-assets/FlowFTP-${VERSION}-macOS-intel.app.tar.gz" \
+            "release-assets/FlowFTP-${VERSION}-macOS-intel.app.tar.gz.sig" \
+            "release-assets/FlowFTP-${VERSION}-macOS-apple-silicon.app.tar.gz" \
+            "release-assets/FlowFTP-${VERSION}-macOS-apple-silicon.app.tar.gz.sig" \
             --title "FlowFTP $TAG" \
             --generate-notes \
             --target "$GITHUB_SHA"
+
+      # The updater reads this file from the "latest" release URL; it must
+      # contain each platform's browser-download URL and its signature.
+      - name: Publish updater manifest (latest.json)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.release-check.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          gh release view "$TAG" >/dev/null 2>&1 || { echo "Release $TAG missing"; exit 1; }
+
+          python3 - "$VERSION" <<'PY'
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          version = sys.argv[1]
+          tag = f"v{version}"
+          repo = os.environ["GH_REPO"]
+
+          def bundle(arch, platform):
+            base = f"FlowFTP-{version}-macOS-{arch}.app.tar.gz"
+            with open(f"release-assets/{base}.sig") as fh:
+              signature = fh.read().strip()
+            url = f"https://github.com/{repo}/releases/download/{tag}/{base}"
+            return platform, {"signature": signature, "url": url}
+
+          manifest = {
+            "version": version,
+            "notes": f"See the changelog: https://github.com/{repo}/blob/main/CHANGELOG.md",
+            "pub_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "platforms": dict([
+              bundle("apple-silicon", "darwin-aarch64"),
+              bundle("intel", "darwin-x86_64"),
+            ]),
+          }
+          with open("release-assets/latest.json", "w") as fh:
+            json.dump(manifest, fh, indent=2)
+          PY
+
+          gh release upload "$TAG" release-assets/latest.json --clobber
+          echo "Updater manifest published for $TAG."

@@ -100,10 +100,10 @@ Accessibility is a **first-class feature**, tracked as a release gate, not a nic
 - [ ] Plugin marketplace & scripting API
 - [ ] Cross-platform build (Windows, Linux) — **after** macOS UX is excellent
 
-### Phase 7 — Polish & Distribution 📋
+### Phase 7 — Polish & Distribution 🚧
 - [ ] Notarization + DMG packaging
-- [ ] Auto-update (Tauri updater)
-- [ ] Sparkle-style update UX
+- [x] Auto-update (Tauri updater; signed artifacts + latest.json on Releases)
+- [x] Update UX — themed Software Update dialog, menu item, palette command, launch auto-check
 - [ ] Accessibility audit pass
 - [ ] Performance benchmark suite (startup, scroll, search)
 - [ ] Localization (English first, i18n-ready)

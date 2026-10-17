@@ -25,14 +25,21 @@
         "transparent": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "trafficLightPosition": { "x": 16, "y": 18 }
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 18
+        }
       }
     ],
     "security": {
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/**", "$TEMP/**", "$TMP/**"]
+        "scope": [
+          "$HOME/**",
+          "$TEMP/**",
+          "$TMP/**"
+        ]
       }
     },
     "macOSPrivateApi": true
@@ -53,7 +60,15 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "11.0"
-    }
+    },
+    "createUpdaterArtifacts": true
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Dhanabhon/flow-ftp/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM5QzI3MjBFMDYzMkQxQTcKUldTbjBUSUdEbkxDeVd2L1YvN3UyZ0hiN2xLZTluaGtNaGJQemJWWkplaXBGZ09ZZkRUcU1MdkgK"
+    }
+  }
 }

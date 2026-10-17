@@ -89,6 +89,7 @@ import { theme } from '$lib/stores/theme.svelte';
       app.quickConnectOpen = true;
     }
     else if (cmd.id === 'sync') app.syncOpen = true;
+    else if (cmd.id === 'check-update') app.updateDialogOpen = true;
     else if (cmd.id === 'go-browser') app.setView('connections');
     else if (cmd.id === 'go-transfers') app.setView('transfers');
     else if (cmd.id === 'toggle-hidden') app.toggleHidden();

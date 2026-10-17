@@ -31,6 +31,7 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
   import SyncPreview from '$lib/components/overlays/SyncPreview.svelte';
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
   import QuitConfirmDialog from '$lib/components/shell/QuitConfirmDialog.svelte';
+  import UpdateDialog from '$lib/components/shell/UpdateDialog.svelte';
 
   let activeFilePane: 'local' | 'remote' | null = null;
 
@@ -868,6 +869,7 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
 <SyncPreview />
 <ToastHost />
 <QuitConfirmDialog />
+<UpdateDialog />
 
 <!-- Delete confirmation: Preview → Confirm → Execute (DESIGN.md) -->
 <Modal
