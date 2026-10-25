@@ -66,8 +66,9 @@ pub async fn remote_connect(
             None => {
                 return Err(IpcError {
                     code: "auth-failed".into(),
-                    message: "No saved password for this connection. Connect once with a                         password (and Save to Keychain) to store it."
-                        .into(),
+                    message:
+                        "No saved password for this connection. Connect once with the password (and Save to Keychain) to store it."
+                            .into(),
                 })
             }
         }
@@ -110,7 +111,10 @@ pub async fn remote_connect(
         port: request.port,
         username: request.username,
         status: ConnectionStatus::Connected,
-        keychain: request.save_keychain,
+        // The flag must reflect that a Keychain secret backs this id, not
+        // merely that this request wanted to write one: a reconnect loaded
+        // the stored password, so the UI must keep offering that path.
+        keychain: request.save_keychain || request.use_keychain_password,
         favorite: false,
         last_connected: Some(
             std::time::SystemTime::now()

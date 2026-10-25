@@ -102,7 +102,7 @@ export function connect(params: ConnectParams): Promise<Connection> {
       port: params.port,
       username: params.username,
       status: 'connected',
-      keychain: params.saveKeychain,
+      keychain: params.saveKeychain || !!params.useKeychainPassword,
       favorite: false,
       lastConnected: Date.now(),
     }),
