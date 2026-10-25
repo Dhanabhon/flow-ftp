@@ -2,6 +2,13 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.2] - 2026-10-25
+
+### Fixed
+
+- Passwords are now remembered as expected. Quick Connect no longer silently skips the Keychain: the Save-to-Keychain toggle (on by default) is available in both modes, every successful connect persists the connection record so its Keychain entry stays reusable, and reconnecting to a remembered server no longer asks for the password again.
+- A connection that reconnected through the Keychain now reports `keychain: true` to the UI, so the saved-password path survives app restarts.
+
 ## [1.2.1] - 2026-10-17
 
 ### Added
