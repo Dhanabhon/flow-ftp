@@ -2,6 +2,12 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.3] - 2026-10-25
+
+### Notes
+
+- Release-engineering verification release: no application changes. Lets installed 1.2.2 clients exercise the in-app Software Update flow end to end (check → download with progress → install → relaunch).
+
 ## [1.2.2] - 2026-10-25
 
 ### Fixed
