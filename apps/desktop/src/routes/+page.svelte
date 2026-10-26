@@ -261,12 +261,18 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
   /** Remote folder row under a Finder drag, when one is targeted. */
   let externalDropFolder = $state<string | null>(null);
 
-  /** The remote folder row under a point, if any (CSS-pixel coordinates). */
+  /** The remote folder row under a point, if any (CSS-pixel coordinates).
+   * Must belong to the REMOTE pane: a wrong coordinate reading can land
+   * elementFromPoint on a same-named folder row of the local pane, which
+   * would silently retarget the upload into a nonexistent remote path. */
   function remoteFolderAt(x: number, y: number): string | null {
     const row = document
       .elementFromPoint(x, y)
       ?.closest<HTMLElement>('[data-drop-folder]');
-    return row?.dataset.dropFolder ?? null;
+    if (!row) return null;
+    const pane = row.closest<HTMLElement>('[data-file-pane]');
+    if (pane?.dataset.filePane !== 'remote') return null;
+    return row.dataset.dropFolder ?? null;
   }
 
   /**
