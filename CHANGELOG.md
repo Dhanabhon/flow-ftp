@@ -2,6 +2,13 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.5] - 2026-10-26
+
+### Fixed
+
+- Finder drops onto the remote pane could silently do nothing on Retina Macs: the drag position unit (physical vs logical pixels) was applied one-way, so the drop landed outside the pane's hit-test no matter where you released. Both readings are now accepted.
+- A failed path classification no longer swallows the whole drop.
+
 ## [1.2.4] - 2026-10-25
 
 ### Added
