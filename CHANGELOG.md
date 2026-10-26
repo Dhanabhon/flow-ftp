@@ -2,6 +2,17 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.4] - 2026-10-25
+
+### Added
+
+- Drag remote files straight out of FlowFTP to Finder, the Desktop, or any macOS app. Drag a remote row past the window edge (or hold ⌥ while dragging) to start a native drag; the file downloads from the server only when you drop, written directly to the destination — Cyberduck-style lazy file promises, no size limit, nothing downloaded if you cancel.
+- Each dropped file confirms with a toast showing where it saved; download failures surface with the file's name.
+
+### Improved
+
+- Dropping folders from Finder onto the remote pane now explains honestly that folder upload is not supported yet, instead of enqueueing transfers that would fail server-side.
+
 ## [1.2.3] - 2026-10-25
 
 ### Notes
