@@ -2,6 +2,12 @@
 
 All notable changes to FlowFTP are documented here.
 
+## [1.2.6] - 2026-10-26
+
+### Fixed
+
+- Dropping a file from Finder onto a folder row of the remote pane could target a folder of the LOCAL pane instead (the drag-position unit fallback landed the hit-test on the wrong pane), producing uploads into a nonexistent remote path that failed with 550. Folder targeting is now scoped to the remote pane only; an ambiguous hit uploads to the current folder.
+
 ## [1.2.5] - 2026-10-26
 
 ### Fixed

@@ -1512,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "flow-ftp"
-version = "1.2.5"
+version = "1.2.6"
 dependencies = [
  "async-trait",
  "flow-core",
