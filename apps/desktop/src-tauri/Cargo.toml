@@ -1,6 +1,6 @@
 [package]
 name = "flow-ftp"
-version = "1.2.3"
+version = "1.2.4"
 description = "The most beautiful open-source FTP/SFTP client for macOS."
 authors = ["Tom Dhanabhon"]
 license = "MIT"
@@ -38,6 +38,7 @@ walkdir = "2"
 notify = "8"
 async-trait = { workspace = true }
 tokio = { workspace = true }
+tauri-plugin-dragout = "0.2.0"
 
 [features]
 # By default do not enable custom protocol — it's opt-in and needs setup.

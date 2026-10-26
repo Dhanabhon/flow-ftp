@@ -1,4 +1,5 @@
 mod bridge;
+mod drag;
 mod edit;
 mod ipc;
 mod profiles;
@@ -24,7 +25,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build());
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dragout::init());
 
     #[cfg(target_os = "macos")]
     let builder = builder.menu(|app| {
@@ -132,6 +134,8 @@ pub fn run() {
             ipc::local_delete,
             ipc::local_read_text,
             ipc::confirm_quit,
+            drag::drag_out_remote,
+            drag::local_path_kinds,
             transfers::transfer_enqueue,
             transfers::transfer_list,
             transfers::transfer_pause,

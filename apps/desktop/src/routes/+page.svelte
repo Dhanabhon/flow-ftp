@@ -2,12 +2,15 @@
   import { app } from '$lib/stores/app.svelte';
   import {
     deleteRemote,
+    dragOutRemote,
     enqueueTransfer,
     IS_TAURI,
     IpcError,
     listLocal,
     listRemote,
     localHome,
+    localPathKinds,
+    onDragOutFeedback,
     pickDownloadDirectory,
     pickFilesToUpload,
     profileList,
@@ -342,6 +345,28 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
     }
   }
 
+  // Drag-out session feedback: each drop downloads the file, then reports
+  // where it landed; failures surface with the file's name.
+  $effect(() => {
+    if (!IS_TAURI) return;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    onDragOutFeedback({
+      onDropped: ({ name, path }) =>
+        app.notify('success', `${name} saved`, path),
+      onError: ({ name, message }) =>
+        app.notify('danger', `${name} failed to download`, message),
+      onEnded: () => {}
+    }).then((un) => {
+      if (disposed) un();
+      else unlisten = un;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
   /** Finder drop onto the remote pane: watch, hit-test, upload on drop. */
   $effect(() => {
     if (!IS_TAURI) return;
@@ -378,13 +403,29 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
           externalDropFolder = null;
           if (inside && payload.paths.length > 0) {
             const targetDir = folder ? joinPath(app.remotePath, folder) : app.remotePath;
-            beginUploads(
-              payload.paths.map((localPath) => ({
-                localPath,
-                fileName: localPath.split('/').pop() ?? localPath
-              })),
-              targetDir
-            );
+            // Folders cannot be uploaded (the engine moves files); say so
+            // instead of enqueueing transfers that would fail server-side.
+            localPathKinds(payload.paths).then((kinds) => {
+              const folders = kinds.filter((k) => k.isDir);
+              const files = kinds.filter((k) => !k.isDir);
+              if (folders.length > 0) {
+                const noun = folders.length === 1 ? 'folder' : 'folders';
+                app.notify(
+                  'warning',
+                  `${folders.length} ${noun} skipped`,
+                  'Folder upload is not supported yet — drag the files inside instead.'
+                );
+              }
+              if (files.length > 0) {
+                beginUploads(
+                  files.map((k) => ({
+                    localPath: k.path,
+                    fileName: k.path.split('/').pop() ?? k.path
+                  })),
+                  targetDir
+                );
+              }
+            });
           }
         }
       })
@@ -494,11 +535,62 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
       if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 6) return;
       activeDrag = { ...drag, active: true };
     }
+    // A remote-row drag that leaves the window (or is started with ⌥ held)
+    // becomes a native macOS drag session: drop it on Finder, Desktop, Mail,
+    // or any app — the file downloads to the drop destination on release.
+    if (
+      activeDrag.side === 'remote' &&
+      IS_TAURI &&
+      (e.altKey || pointerOutsideWindow(e.clientX, e.clientY))
+    ) {
+      void handOffToNativeDrag(activeDrag);
+      return;
+    }
     e.preventDefault();
     activeDrag = { ...activeDrag, pointerX: e.clientX, pointerY: e.clientY };
     internalFileDrag = activeDrag;
     const target = findInternalDropTarget(e.clientX, e.clientY, activeDrag.side);
     internalDropTarget = target;
+  }
+
+  /** True when the pointer has left the app window. */
+  function pointerOutsideWindow(x: number, y: number): boolean {
+    return x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight;
+  }
+
+  /** End the internal drag and start a native drag-out session. */
+  async function handOffToNativeDrag(drag: NonNullable<typeof internalFileDrag>) {
+    internalFileDrag = null;
+    internalDropTarget = null;
+    suppressClickAfterFileDrag = true;
+    setTimeout(() => (suppressClickAfterFileDrag = false), 0);
+    if (!app.activeConnectionId || drag.names.length === 0) return;
+    try {
+      await dragOutRemote(app.activeConnectionId, drag.names, app.remotePath);
+      const plural = drag.names.length === 1 ? '' : 's';
+      app.notify(
+        'success',
+        `Dragging ${drag.names.length} file${plural}`,
+        'Drop in Finder to download — the file saves when you release.'
+      );
+    } catch (err) {
+      app.notify(
+        'danger',
+        'Could not start the drag',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  /** The pointer left the window mid-drag: hand remote drags to macOS. */
+  function onWindowPointerOut(e: PointerEvent) {
+    if (
+      e.relatedTarget === null &&
+      internalFileDrag?.active &&
+      internalFileDrag.side === 'remote'
+    ) {
+      void handOffToNativeDrag(internalFileDrag);
+    }
   }
 
   function finishInternalFileDrag(e: PointerEvent) {
@@ -722,6 +814,7 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
   onpointermove={moveInternalFileDrag}
   onpointerup={finishInternalFileDrag}
   onpointercancel={cancelInternalFileDrag}
+  onpointerout={onWindowPointerOut}
   onclickcapture={suppressDraggedFileClick}
 />
 

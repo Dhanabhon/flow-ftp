@@ -559,3 +559,79 @@ export async function relaunchApp(): Promise<void> {
   const { relaunch } = await import('@tauri-apps/plugin-process');
   await relaunch();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Native drag-out (remote rows → Finder; see src-tauri/src/drag.rs)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Start a native macOS drag session carrying the given remote files. The
+ * session begins immediately; file contents download from the server only
+ * when the user drops, written straight into the drop destination. Returns
+ * the session id (matches the `session` field of feedback events).
+ */
+export function dragOutRemote(
+  connectionId: string,
+  names: string[],
+  remoteDir: string
+): Promise<number> {
+  return mockOr(
+    () => call<number>('drag_out_remote', { connectionId, names, remoteDir }),
+    () => 0,
+  );
+}
+
+/** One dropped local path and whether it is a directory. */
+export interface LocalPathKind {
+  path: string;
+  isDir: boolean;
+}
+
+/** Classify local paths dropped from Finder (folders cannot be uploaded). */
+export function localPathKinds(paths: string[]): Promise<LocalPathKind[]> {
+  return mockOr(
+    () => call<LocalPathKind[]>('local_path_kinds', { paths }),
+    () => paths.map((path) => ({ path, isDir: false })),
+  );
+}
+
+/** Feedback from an active drag-out session. */
+export interface DragOutFeedback {
+  /** A promised file finished writing at its drop destination. */
+  onDropped?: (info: { name: string; path: string }) => void;
+  /** Writing a promised file failed. */
+  onError?: (info: { name: string; message: string }) => void;
+  /** The session ended (dropped somewhere or cancelled). */
+  onEnded?: (info: { cancelled: boolean }) => void;
+}
+
+/**
+ * Subscribe to drag-out session events. Each drop of a promised file emits
+ * `onDropped` after its content finished downloading to the destination.
+ */
+export async function onDragOutFeedback(feedback: DragOutFeedback): Promise<() => void> {
+  if (!IS_TAURI) return () => {};
+  const { listen } = await import('@tauri-apps/api/event');
+  const unlistens: Array<() => void> = [];
+  if (feedback.onDropped) {
+    const off = await listen<{ name: string; path: string }>('dragout://dropped', (e) =>
+      feedback.onDropped!(e.payload),
+    );
+    unlistens.push(() => off());
+  }
+  if (feedback.onError) {
+    const off = await listen<{ name: string; message: string }>('dragout://error', (e) =>
+      feedback.onError!(e.payload),
+    );
+    unlistens.push(() => off());
+  }
+  if (feedback.onEnded) {
+    const off = await listen<{ cancelled: boolean }>('dragout://ended', (e) =>
+      feedback.onEnded!(e.payload),
+    );
+    unlistens.push(() => off());
+  }
+  return () => {
+    for (const un of unlistens) un();
+  };
+}
