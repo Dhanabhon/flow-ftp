@@ -382,17 +382,23 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
           return;
         }
         const rect = remotePaneEl?.getBoundingClientRect();
+        // Tauri reports physical window coordinates, but some macOS builds
+        // have delivered logical ones — accept whichever reading lands
+        // inside the pane so the drop never dies on a unit mismatch.
         const scale = window.devicePixelRatio || 1;
-        const x = payload.position.x / scale;
-        const y = payload.position.y / scale;
-        const inside =
+        const cx = payload.position.x / scale;
+        const cy = payload.position.y / scale;
+        const insideAt = (x: number, y: number) =>
           !!rect &&
-          !!app.activeConnectionId &&
           x >= rect.left &&
           x <= rect.right &&
           y >= rect.top &&
           y <= rect.bottom;
-        const folder = inside ? remoteFolderAt(x, y) : null;
+        const inside =
+          !!app.activeConnectionId && (insideAt(cx, cy) || insideAt(payload.position.x, payload.position.y));
+        // elementFromPoint needs CSS pixels; try the scaled reading first,
+        // then the raw one.
+        const folder = inside ? (remoteFolderAt(cx, cy) ?? remoteFolderAt(payload.position.x, payload.position.y)) : null;
 
         if (payload.type === 'enter' || payload.type === 'over') {
           externalDragOver = inside;
@@ -405,27 +411,31 @@ import { IconAlert, IconDownload, IconUpload } from '$lib/components/icons';
             const targetDir = folder ? joinPath(app.remotePath, folder) : app.remotePath;
             // Folders cannot be uploaded (the engine moves files); say so
             // instead of enqueueing transfers that would fail server-side.
-            localPathKinds(payload.paths).then((kinds) => {
-              const folders = kinds.filter((k) => k.isDir);
-              const files = kinds.filter((k) => !k.isDir);
-              if (folders.length > 0) {
-                const noun = folders.length === 1 ? 'folder' : 'folders';
-                app.notify(
-                  'warning',
-                  `${folders.length} ${noun} skipped`,
-                  'Folder upload is not supported yet — drag the files inside instead.'
-                );
-              }
-              if (files.length > 0) {
-                beginUploads(
-                  files.map((k) => ({
-                    localPath: k.path,
-                    fileName: k.path.split('/').pop() ?? k.path
-                  })),
-                  targetDir
-                );
-              }
-            });
+            // A classification failure must never swallow the drop — fall
+            // back to treating every path as a file.
+            localPathKinds(payload.paths)
+              .catch(() => payload.paths.map((path) => ({ path, isDir: false })))
+              .then((kinds) => {
+                const folders = kinds.filter((k) => k.isDir);
+                const files = kinds.filter((k) => !k.isDir);
+                if (folders.length > 0) {
+                  const noun = folders.length === 1 ? 'folder' : 'folders';
+                  app.notify(
+                    'warning',
+                    `${folders.length} ${noun} skipped`,
+                    'Folder upload is not supported yet — drag the files inside instead.'
+                  );
+                }
+                if (files.length > 0) {
+                  beginUploads(
+                    files.map((k) => ({
+                      localPath: k.path,
+                      fileName: k.path.split('/').pop() ?? k.path
+                    })),
+                    targetDir
+                  );
+                }
+              });
           }
         }
       })

@@ -86,6 +86,27 @@ pub fn run() {
 
     builder
         .on_window_event(|window, event| {
+            // Native drag-drop wire log: proves whether macOS delivers drag
+            // events and in which coordinate space, so a "drop does nothing"
+            // report can be diagnosed from the transcript instead of guessed.
+            if let tauri::WindowEvent::DragDrop(ev) = event {
+                match ev {
+                    tauri::DragDropEvent::Enter { position, paths } => {
+                        log::debug!("drag enter at {:?} paths {:?}", position, paths);
+                    }
+                    tauri::DragDropEvent::Over { position } => {
+                        log::debug!("drag over at {:?}", position);
+                    }
+                    tauri::DragDropEvent::Drop { position, paths } => {
+                        log::debug!("drag DROP at {:?} paths {:?}", position, paths);
+                    }
+                    tauri::DragDropEvent::Leave => {
+                        log::debug!("drag leave");
+                    }
+                    _ => {}
+                }
+                return;
+            }
             // Quit confirmation: warn before killing in-flight transfers or
             // dropping live server sessions.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
